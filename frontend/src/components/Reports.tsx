@@ -168,7 +168,7 @@ const Reports: React.FC = () => {
   };
 
   return (
-      <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
           <Assessment sx={{ mr: 1, verticalAlign: 'middle' }} />
           Reports & Analytics
@@ -253,15 +253,15 @@ const Reports: React.FC = () => {
             </Card>
 
           {/* Reports Section */}
-          <Grid container spacing={3}>
+          <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
             {/* Download Reports */}
-            <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     <Download sx={{ mr: 1, verticalAlign: 'middle' }} />
                     Download Reports
-                
+                  </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Button
                     variant="contained"
@@ -310,48 +310,48 @@ const Reports: React.FC = () => {
                 {employeeSummary && (
                   <Box>
                     <Divider sx={{ mb: 2 }} />
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
+                    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                      <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
                         <Chip 
                           label={`Total Days: ${employeeSummary.total_days}`} 
                           color="primary" 
                           variant="outlined"
                           sx={{ width: '100%' }}
                         />
-                      </Grid>
-                      <Grid item xs={6}>
+                      </Box>
+                      <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
                         <Chip 
                           label={`Present: ${employeeSummary.present_days}`} 
                           color="success" 
                           variant="outlined"
                           sx={{ width: '100%' }}
                         />
-                      </Grid>
-                      <Grid item xs={6}>
+                      </Box>
+                      <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
                         <Chip 
                           label={`Late: ${employeeSummary.late_days}`} 
                           color="warning" 
                           variant="outlined"
                           sx={{ width: '100%' }}
                         />
-                      </Grid>
-                      <Grid item xs={6}>
+                      </Box>
+                      <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
                         <Chip 
                           label={`Absent: ${employeeSummary.absent_days}`} 
                           color="error" 
                           variant="outlined"
                           sx={{ width: '100%' }}
                         />
-                      </Grid>
-                      <Grid item xs={6}>
+                      </Box>
+                      <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
                         <Chip 
                           label={`Total Hours: ${employeeSummary.total_hours}`} 
                           color="info" 
                           variant="outlined"
                           sx={{ width: '100%' }}
                         />
-                      </Grid>
-                      <Grid item xs={6}>
+                      </Box>
+                      <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
                         <Chip 
                           label={`Attendance Rate: ${employeeSummary.attendance_rate}%`} 
                           color={employeeSummary.attendance_rate >= 90 ? 'success' : 
@@ -359,15 +359,16 @@ const Reports: React.FC = () => {
                           variant="outlined"
                           sx={{ width: '100%' }}
                         />
-                      </Grid>
-                    </Grid>
+                      </Box>
+                    </Box>
                   </Box>
                 )}
               </CardContent>
             </Card>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Box>
+    </Box>
   );
 };
 

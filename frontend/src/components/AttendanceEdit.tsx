@@ -26,7 +26,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
 } from '@mui/material';
 import {
   Edit,
@@ -241,8 +241,8 @@ const AttendanceEdit: React.FC = () => {
       {/* Date Selector */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <TextField
                 label="Select Date"
                 type="date"
@@ -251,8 +251,8 @@ const AttendanceEdit: React.FC = () => {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
               />
-            </Grid>
-            <Grid item xs={12} md={4}>
+            </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <Button
                 variant="contained"
                 onClick={loadAttendanceRecords}
@@ -261,8 +261,8 @@ const AttendanceEdit: React.FC = () => {
               >
                 {loading ? <CircularProgress size={20} /> : 'Load Records'}
               </Button>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </CardContent>
       </Card>
 
@@ -361,8 +361,8 @@ const AttendanceEdit: React.FC = () => {
           )}
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 1 }}>
+            <Box sx={{ flex: "1 1 300px", minWidth: "300px" }}>
               <TextField
                 label="Check In Time"
                 type="datetime-local"
@@ -371,8 +371,8 @@ const AttendanceEdit: React.FC = () => {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <TextField
                 label="Check Out Time"
                 type="datetime-local"
@@ -381,8 +381,8 @@ const AttendanceEdit: React.FC = () => {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -396,8 +396,8 @@ const AttendanceEdit: React.FC = () => {
                   <MenuItem value="half_day">Half Day</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <TextField
                 label="Notes"
                 value={editForm.notes}
@@ -406,8 +406,8 @@ const AttendanceEdit: React.FC = () => {
                 multiline
                 rows={2}
               />
-            </Grid>
-            <Grid item xs={12}>
+            </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <TextField
                 label="Reason for Modification *"
                 value={editForm.reason}
@@ -418,8 +418,8 @@ const AttendanceEdit: React.FC = () => {
                 required
                 helperText="Please provide a detailed reason for this modification"
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button 

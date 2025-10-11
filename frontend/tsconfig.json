@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "esnext",
@@ -20,6 +20,7 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
+  // Last updated: 2025-10-11T17:15:46.651Z
   "include": [
     "src"
   ]

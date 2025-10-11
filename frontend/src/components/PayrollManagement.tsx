@@ -22,7 +22,6 @@ import {
   Select,
   MenuItem,
   Chip,
-  Grid,
   Alert,
   Divider,
   IconButton,
@@ -96,8 +95,8 @@ const PayrollManagement: React.FC = () => {
   // Form states
   const [periodForm, setPeriodForm] = useState({
     name: '',
-    start_date: null as Date | null,
-    end_date: null as Date | null
+    start_date: '',
+    end_date: ''
   });
 
   useEffect(() => {
@@ -148,13 +147,13 @@ const PayrollManagement: React.FC = () => {
     try {
       const response = await api.post('/payroll/periods', {
         name: periodForm.name,
-        start_date: periodForm.start_date.toISOString().split('T')[0],
-        end_date: periodForm.end_date.toISOString().split('T')[0]
+        start_date: periodForm.start_date,
+        end_date: periodForm.end_date
       });
 
       setMessage({ type: 'success', text: 'Payroll period created successfully' });
       setCreatePeriodDialog(false);
-      setPeriodForm({ name: '', start_date: null, end_date: null });
+      setPeriodForm({ name: '', start_date: '', end_date: '' });
       loadPayrollPeriods();
     } catch (error) {
       setMessage({ type: 'error', text: 'Error creating payroll period' });
@@ -205,7 +204,7 @@ const PayrollManagement: React.FC = () => {
   };
 
   return (
-      <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
           💰 Payroll Management
         </Typography>
@@ -258,8 +257,8 @@ const PayrollManagement: React.FC = () => {
 
         {/* Payroll Summary */}
         {payrollSummary && (
-          <Grid container spacing={3} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={3}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+            <Box sx={{ flex: '1 1 250px', minWidth: '250px' }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -273,9 +272,9 @@ const PayrollManagement: React.FC = () => {
                   </Box>
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{ flex: '1 1 250px', minWidth: '250px' }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -291,9 +290,9 @@ const PayrollManagement: React.FC = () => {
                   </Box>
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{ flex: '1 1 250px', minWidth: '250px' }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -309,9 +308,9 @@ const PayrollManagement: React.FC = () => {
                   </Box>
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{ flex: '1 1 250px', minWidth: '250px' }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -327,8 +326,8 @@ const PayrollManagement: React.FC = () => {
                   </Box>
                 </CardContent>
               </Card>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         )}
 
         {/* Payroll Records Table */}
@@ -448,17 +447,21 @@ const PayrollManagement: React.FC = () => {
                 fullWidth
                 placeholder="e.g., October 2025"
               />
-              <DatePicker
+              <TextField
                 label="Start Date"
+                type="date"
                 value={periodForm.start_date}
-                onChange={(date) => setPeriodForm({ ...periodForm, start_date: date })}
-                renderInput={(params) => <TextField {...params} fullWidth />}
+                onChange={(e) => setPeriodForm({ ...periodForm, start_date: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
               />
-              <DatePicker
+              <TextField
                 label="End Date"
+                type="date"
                 value={periodForm.end_date}
-                onChange={(date) => setPeriodForm({ ...periodForm, end_date: date })}
-                renderInput={(params) => <TextField {...params} fullWidth />}
+                onChange={(e) => setPeriodForm({ ...periodForm, end_date: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
               />
             </Box>
           </DialogContent>
@@ -474,8 +477,8 @@ const PayrollManagement: React.FC = () => {
           <DialogContent>
             {selectedRecord && (
               <Box sx={{ mt: 1 }}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
+                <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  <Box sx={{ flex: '1 1 300px', minWidth: '300px' }}>
                     <Typography variant="h6" gutterBottom>Work Summary</Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -488,7 +491,7 @@ const PayrollManagement: React.FC = () => {
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography>Overtime Hours:</Typography>
-                        <Typography color="primary">{selectedRecord.overtime_hours.toFixed(1)}</Typography>
+                        <Typography>{selectedRecord.overtime_hours.toFixed(1)}</Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography>Days Worked:</Typography>
@@ -503,9 +506,9 @@ const PayrollManagement: React.FC = () => {
                         <Typography color="warning.main">{selectedRecord.days_late}</Typography>
                       </Box>
                     </Box>
-                  </Grid>
+                  </Box>
                   
-                  <Grid item xs={12} md={6}>
+                  <Box sx={{ flex: '1 1 300px', minWidth: '300px' }}>
                     <Typography variant="h6" gutterBottom>Salary Breakdown</Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -531,8 +534,8 @@ const PayrollManagement: React.FC = () => {
                         </Typography>
                       </Box>
                     </Box>
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </Box>
             )}
           </DialogContent>
@@ -541,7 +544,6 @@ const PayrollManagement: React.FC = () => {
           </DialogActions>
         </Dialog>
       </Box>
-    </LocalizationProvider>
   );
 };
 

@@ -85,18 +85,20 @@ const AttendanceTrackerRealTime: React.FC = () => {
     setMessage(null);
 
     try {
-      // Create a more realistic image blob for the API call
+      // Capture actual camera image from video element
+      const videoElement = document.querySelector('video');
+      if (!videoElement) {
+        throw new Error('Camera not available');
+      }
+
       const canvas = document.createElement('canvas');
-      canvas.width = 640;
-      canvas.height = 480;
+      canvas.width = videoElement.videoWidth || 640;
+      canvas.height = videoElement.videoHeight || 480;
       const ctx = canvas.getContext('2d');
+      
       if (ctx) {
-        // Create a simple colored rectangle to represent a face image
-        ctx.fillStyle = '#f0f0f0';
-        ctx.fillRect(0, 0, 640, 480);
-        ctx.fillStyle = '#333';
-        ctx.font = '20px Arial';
-        ctx.fillText(`Employee: ${employee.employee_name}`, 50, 240);
+        // Draw the current video frame to canvas
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
       }
       
       const blob = await new Promise<Blob>((resolve) => {
