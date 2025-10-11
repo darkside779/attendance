@@ -133,9 +133,10 @@ const AttendanceTrackerRealTime: React.FC = () => {
       }, 3000);
 
     } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || `Failed to ${mode.replace('-', ' ')}`;
       setMessage({
         type: 'error',
-        text: error.response?.data?.detail || `Failed to ${mode.replace('-', ' ')}`
+        text: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage)
       });
     } finally {
       setIsProcessing(false);
@@ -329,8 +330,8 @@ const AttendanceTrackerRealTime: React.FC = () => {
                     {record.employee_name}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
-                    {record.check_in ? `In: ${new Date(record.check_in).toLocaleTimeString()}` : 'Not checked in'}
-                    {record.check_out && ` | Out: ${new Date(record.check_out).toLocaleTimeString()}`}
+                    {record.check_in ? `In: ${record.check_in}` : 'Not checked in'}
+                    {record.check_out && ` | Out: ${record.check_out}`}
                   </Typography>
                 </Box>
                 <Chip

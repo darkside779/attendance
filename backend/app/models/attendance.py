@@ -8,6 +8,7 @@ class Attendance(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True)  # Link to assigned shift
     check_in = Column(DateTime(timezone=True), nullable=False)
     check_out = Column(DateTime(timezone=True), nullable=True)
     total_hours = Column(Float, default=0.0)
@@ -21,6 +22,8 @@ class Attendance(Base):
     
     # Relationships
     employee = relationship("Employee", back_populates="attendance_records")
+    shift = relationship("Shift")
+    modifications = relationship("AttendanceModification", back_populates="attendance")
     
     def __repr__(self):
         return f"<Attendance(id={self.id}, employee_id={self.employee_id}, date='{self.date}')>"

@@ -6,17 +6,24 @@ import {
   Typography,
   Button,
   AppBar,
-  Toolbar,
   IconButton,
   Menu,
   MenuItem,
+  Toolbar,
 } from '@mui/material';
 import {
+  Dashboard as DashboardIcon,
   People,
   AccessTime,
+  Videocam,
+  TrendingUp,
+  Assessment,
+  Edit,
   AttachMoney,
   AccountCircle,
   ExitToApp,
+  Schedule,
+  Payment
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -168,17 +175,43 @@ const Dashboard: React.FC = () => {
                 View Attendance
               </Button>
               <Button
-                variant="contained"
-                color="success"
+                variant="outlined"
+                color="secondary"
                 onClick={() => navigate('/attendance-realtime')}
               >
-                Real-Time Check In/Out
+                Real-Time Attendance
+              </Button>
+              <Button
+                variant="contained"
+                color="info"
+                startIcon={<Assessment />}
+                onClick={() => navigate('/reports')}
+              >
+                Reports & Analytics
               </Button>
               <Button
                 variant="outlined"
-                onClick={() => navigate('/reports')}
+                color="warning"
+                startIcon={<Edit />}
+                onClick={() => navigate('/attendance-edit')}
               >
-                Generate Reports
+                Edit Attendance
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<Schedule />}
+                onClick={() => navigate('/shifts')}
+              >
+                Shift Management
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={<Payment />}
+                onClick={() => navigate('/payroll')}
+              >
+                Payroll Management
               </Button>
             </Box>
           </CardContent>

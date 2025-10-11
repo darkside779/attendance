@@ -103,7 +103,8 @@ const AttendanceTracker: React.FC = () => {
       // Refresh today's attendance
       await fetchTodayAttendance();
     } catch (error: any) {
-      setError(error.response?.data?.detail || `${mode} failed`);
+      const errorMessage = error.response?.data?.detail || `${mode} failed`;
+      setError(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
     } finally {
       setIsLoading(false);
     }

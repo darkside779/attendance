@@ -204,6 +204,8 @@ const RealTimeFaceRegistration: React.FC = () => {
       
       console.log('Uploading face for employee:', employeeId);
       console.log('Image blob size:', capturedFace.imageBlob.size);
+      console.log('Image blob type:', capturedFace.imageBlob.type);
+      console.log('FormData entries:', Array.from(formData.entries()));
       
       const result = await faceAPI.uploadFace(parseInt(employeeId), formData);
       
@@ -222,9 +224,10 @@ const RealTimeFaceRegistration: React.FC = () => {
       console.error('Face upload error:', error);
       console.error('Error response:', error.response?.data);
       
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to save face data';
       setMessage({
         type: 'error',
-        text: error.response?.data?.detail || error.message || 'Failed to save face data'
+        text: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage)
       });
     } finally {
       setIsProcessing(false);

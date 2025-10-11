@@ -75,3 +75,48 @@ htmlcov/
 
 # Docker
 docker-compose.override.yml
+
+# Development/Setup Files (not needed in production)
+**/create_*.py
+**/debug_*.py
+**/fix_*.py
+**/test_*.py
+**/restart_*.py
+**/start_*.py
+**/add_*.py
+**/clear_*.py
+**/check_*.py
+**/complete_*.py
+**/final_*.py
+
+# Development Documentation (keep only README.md)
+DEVELOPMENT_SUMMARY.md
+FINAL_SYSTEM_SUMMARY.md
+INSTALL_FACE_RECOGNITION.md
+PHASE3_SUMMARY.md
+PROJECT_SUMMARY.md
+QUICK_DEBUG_STEPS.md
+SHIFT_MANAGEMENT_SUMMARY.md
+SOLVE_FACE_RECOGNITION.md
+START_FACE_RECOGNITION_SYSTEM.md
+steps.md
+system_architecture.md
+TEST_FACE_SYSTEM.md
+Untitled-*.md
+
+system architecture.md
+
+FINAL_SYSTEM_SUMMARY.md
+INSTALL_FACE_RECOGNITION.md
+PHASE3_SUMMARY.md
+PROJECT_SUMMARY.md
+QUICK_DEBUG_STEPS.md
+SHIFT_MANAGEMENT_SUMMARY.md
+SOLVE_FACE_RECOGNITION.md
+START_FACE_RECOGNITION_SYSTEM.md
+steps.md
+system_architecture.md
+TEST_FACE_SYSTEM.md
+Untitled-*.md
+
+system architecture.md

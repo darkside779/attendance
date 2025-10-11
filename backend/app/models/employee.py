@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
-from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -12,7 +11,7 @@ class Employee(Base):
     name = Column(String(100), nullable=False)
     phone = Column(String(20), nullable=True)
     email = Column(String(100), nullable=True)
-    face_encoding = Column(LONGTEXT, nullable=True)  # Store face encoding as JSON string
+    face_encoding = Column(Text, nullable=True)  # Store face encoding as JSON string
     face_image_path = Column(String(255), nullable=True)
     department = Column(String(50), nullable=True)
     position = Column(String(50), nullable=True)

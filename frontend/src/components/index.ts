@@ -8,3 +8,7 @@ export { default as FaceCapture } from './FaceCapture';
 export { default as FaceUpload } from './FaceUpload';
 export { default as RealTimeFaceDetection } from './RealTimeFaceDetection';
 export { default as RealTimeFaceRegistration } from './RealTimeFaceRegistration';
+export { default as Reports } from './Reports-Simple';
+export { default as AttendanceEdit } from './AttendanceEdit-Simple';
+export { default as PayrollManagement } from './PayrollManagement-Simple';
+export { default as ShiftManagement } from './ShiftManagement';

@@ -7,7 +7,7 @@ class Shift(Base):
     __tablename__ = "shifts"
     
     id = Column(Integer, primary_key=True, index=True)
-    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True)  # NULL for templates
     shift_name = Column(String(50), nullable=False)  # Morning, Evening, Night, etc.
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)

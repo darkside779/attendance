@@ -71,7 +71,8 @@ const FaceUpload: React.FC<FaceUploadProps> = ({
       setActiveStep(1);
       setIsLoading(false);
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Failed to validate image');
+      const errorMessage = error.response?.data?.detail || 'Failed to validate image';
+      setError(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
       setIsLoading(false);
     }
   };
@@ -94,7 +95,8 @@ const FaceUpload: React.FC<FaceUploadProps> = ({
         onSuccess();
       }
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Failed to upload face data');
+      const errorMessage = error.response?.data?.detail || 'Failed to upload face data';
+      setError(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
     } finally {
       setIsLoading(false);
     }

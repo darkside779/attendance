@@ -14,75 +14,10 @@ from app.models.employee import Employee
 from app.models.attendance import Attendance
 from app.services.simple_face_service import simple_face_service
 from app.services.employee_service import EmployeeService
+from app.services.attendance_service import AttendanceService
 from app.routes.auth import get_current_user
 
 router = APIRouter()
-
-class AttendanceService:
-    def __init__(self, db: Session):
-        self.db = db
-    
-    def get_today_attendance(self, employee_id: int) -> Optional[Attendance]:
-        """Get today's attendance record for an employee"""
-        today = date.today().strftime('%Y-%m-%d')
-        return self.db.query(Attendance).filter(
-            and_(
-                Attendance.employee_id == employee_id,
-                Attendance.date == today
-            )
-        ).first()
-    
-    def create_attendance_record(self, employee_id: int, check_in_time: datetime) -> Attendance:
-        """Create new attendance record"""
-        today = date.today().strftime('%Y-%m-%d')
-        
-        attendance = Attendance(
-            employee_id=employee_id,
-            check_in=check_in_time,
-            date=today,
-            status="present"
-        )
-        
-        self.db.add(attendance)
-        self.db.commit()
-        self.db.refresh(attendance)
-        return attendance
-    
-    def update_checkout(self, attendance_id: int, check_out_time: datetime) -> Attendance:
-        """Update attendance record with checkout time"""
-        attendance = self.db.query(Attendance).filter(Attendance.id == attendance_id).first()
-        
-        if attendance:
-            attendance.check_out = check_out_time
-            
-            # Calculate total hours
-            if attendance.check_in:
-                time_diff = check_out_time - attendance.check_in
-                total_hours = time_diff.total_seconds() / 3600
-                attendance.total_hours = round(total_hours, 2)
-            
-            self.db.commit()
-            self.db.refresh(attendance)
-        
-        return attendance
-    
-    def get_attendance_records(self, skip: int = 0, limit: int = 100, 
-                             employee_id: Optional[int] = None,
-                             start_date: Optional[date] = None,
-                             end_date: Optional[date] = None) -> List[Attendance]:
-        """Get attendance records with filters"""
-        query = self.db.query(Attendance)
-        
-        if employee_id:
-            query = query.filter(Attendance.employee_id == employee_id)
-        
-        if start_date:
-            query = query.filter(Attendance.date >= start_date.strftime('%Y-%m-%d'))
-        
-        if end_date:
-            query = query.filter(Attendance.date <= end_date.strftime('%Y-%m-%d'))
-        
-        return query.order_by(Attendance.created_at.desc()).offset(skip).limit(limit).all()
 
 @router.post("/check-in")
 async def check_in_with_face(
@@ -153,23 +88,19 @@ async def check_in_with_face(
             employee_db_id, confidence = match_result
             employee = employee_service.get_employee_by_id(employee_db_id)
         
-        # Check attendance service
+        # Use enhanced attendance service with shift integration
         attendance_service = AttendanceService(db)
-        today_attendance = attendance_service.get_today_attendance(employee_db_id)
+        check_in_result = attendance_service.check_in_employee(employee_db_id)
         
-        if today_attendance and today_attendance.check_in:
+        if not check_in_result["success"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Employee {employee.name} has already checked in today at {today_attendance.check_in.strftime('%H:%M:%S')}"
+                detail=check_in_result["message"]
             )
-        
-        # Create check-in record
-        check_in_time = datetime.now()
-        attendance_record = attendance_service.create_attendance_record(employee_db_id, check_in_time)
         
         return {
             "success": True,
-            "message": f"Check-in successful for {employee.name}",
+            "message": check_in_result["message"],
             "employee": {
                 "id": employee.id,
                 "employee_id": employee.employee_id,
@@ -177,9 +108,10 @@ async def check_in_with_face(
                 "department": employee.department
             },
             "attendance": {
-                "id": attendance_record.id,
-                "check_in_time": check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
-                "date": attendance_record.date
+                "id": check_in_result["attendance_id"],
+                "check_in_time": check_in_result["check_in_time"],
+                "status": check_in_result["status"],
+                "shift_info": check_in_result["shift_info"]
             },
             "recognition_confidence": round((1 - confidence) * 100, 2)
         }
@@ -240,29 +172,19 @@ async def check_out_with_face(
         employee_id, confidence = match_result
         employee = employee_service.get_employee_by_id(employee_id)
         
-        # Check if employee has checked in today
+        # Use enhanced attendance service with shift integration
         attendance_service = AttendanceService(db)
-        today_attendance = attendance_service.get_today_attendance(employee_id)
+        check_out_result = attendance_service.check_out_employee(employee_id)
         
-        if not today_attendance or not today_attendance.check_in:
+        if not check_out_result["success"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Employee {employee.name} has not checked in today"
+                detail=check_out_result["message"]
             )
-        
-        if today_attendance.check_out:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Employee {employee.name} has already checked out today at {today_attendance.check_out.strftime('%H:%M:%S')}"
-            )
-        
-        # Update with check-out time
-        check_out_time = datetime.now()
-        updated_attendance = attendance_service.update_checkout(today_attendance.id, check_out_time)
         
         return {
             "success": True,
-            "message": f"Check-out successful for {employee.name}",
+            "message": check_out_result["message"],
             "employee": {
                 "id": employee.id,
                 "employee_id": employee.employee_id,
@@ -270,11 +192,11 @@ async def check_out_with_face(
                 "department": employee.department
             },
             "attendance": {
-                "id": updated_attendance.id,
-                "check_in_time": updated_attendance.check_in.strftime('%Y-%m-%d %H:%M:%S'),
-                "check_out_time": check_out_time.strftime('%Y-%m-%d %H:%M:%S'),
-                "total_hours": updated_attendance.total_hours,
-                "date": updated_attendance.date
+                "id": check_out_result["attendance_id"],
+                "check_out_time": check_out_result["check_out_time"],
+                "total_hours": check_out_result["total_hours"],
+                "regular_hours": check_out_result["regular_hours"],
+                "overtime_hours": check_out_result["overtime_hours"]
             },
             "recognition_confidence": round((1 - confidence) * 100, 2)
         }
@@ -287,85 +209,138 @@ async def check_out_with_face(
             detail=f"Error during check-out: {str(e)}"
         )
 
+@router.get("/employee/{employee_id}/today")
+async def get_employee_attendance_today(
+    employee_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get employee's attendance record for today with shift information"""
+    try:
+        attendance_service = AttendanceService(db)
+        attendance_data = attendance_service.get_employee_attendance_today(employee_id)
+        
+        if not attendance_data:
+            return {
+                "message": "No attendance record found for today",
+                "attendance": None
+            }
+        
+        return {
+            "message": "Attendance record retrieved successfully",
+            "attendance": attendance_data
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving attendance: {str(e)}"
+        )
+
 @router.get("/records")
-async def get_attendance_records(
+async def get_attendance_records_with_shifts(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    employee_id: Optional[int] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get attendance records with filters"""
-    
+    """Get attendance records with shift information"""
     try:
-        # Parse dates if provided
-        start_date_obj = None
-        end_date_obj = None
-        
-        if start_date:
-            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-        
-        if end_date:
-            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
         attendance_service = AttendanceService(db)
         records = attendance_service.get_attendance_records(
-            skip=skip,
-            limit=limit,
-            employee_id=employee_id,
-            start_date=start_date_obj,
-            end_date=end_date_obj
+            skip=skip, 
+            limit=limit, 
+            start_date=start_date, 
+            end_date=end_date
         )
-        
-        # Format response
-        formatted_records = []
-        for record in records:
-            formatted_record = {
-                "id": record.id,
-                "employee_id": record.employee_id,
-                "employee_name": record.employee.name if record.employee else "Unknown",
-                "employee_code": record.employee.employee_id if record.employee else "Unknown",
-                "date": record.date,
-                "check_in": record.check_in.strftime('%H:%M:%S') if record.check_in else None,
-                "check_out": record.check_out.strftime('%H:%M:%S') if record.check_out else None,
-                "total_hours": record.total_hours,
-                "status": record.status,
-                "notes": record.notes
-            }
-            formatted_records.append(formatted_record)
         
         return {
-            "records": formatted_records,
-            "total": len(formatted_records),
-            "skip": skip,
-            "limit": limit
+            "message": f"Retrieved {len(records)} attendance records",
+            "records": records,
+            "total": len(records)
         }
         
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid date format. Use YYYY-MM-DD"
-        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving attendance records: {str(e)}"
         )
 
-@router.get("/today")
-async def get_today_attendance(
+@router.get("/shift-compliance-report")
+async def get_shift_compliance_report(
+    start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(..., description="End date in YYYY-MM-DD format"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get today's attendance summary"""
+    """Generate shift compliance report"""
+    try:
+        attendance_service = AttendanceService(db)
+        report = attendance_service.get_shift_compliance_report(start_date, end_date)
+        
+        return {
+            "message": "Shift compliance report generated successfully",
+            "report": report
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating report: {str(e)}"
+        )
+
+@router.put("/assign-shift/{attendance_id}")
+async def assign_shift_to_attendance_record(
+    attendance_id: int,
+    shift_id: int = Query(..., description="Shift ID to assign"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Manually assign a shift to an attendance record"""
+    try:
+        attendance_service = AttendanceService(db)
+        success = attendance_service.assign_shift_to_attendance(attendance_id, shift_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Attendance record not found"
+            )
+        
+        return {
+            "message": "Shift assigned to attendance record successfully",
+            "attendance_id": attendance_id,
+            "shift_id": shift_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error assigning shift: {str(e)}"
+        )
+
+@router.get("/today")
+async def get_today_attendance(
+    date_param: Optional[str] = Query(None, alias="date"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get attendance summary for a specific date (defaults to today)"""
     
     try:
-        today = date.today().strftime('%Y-%m-%d')
+        if date_param:
+            target_date = date_param
+        else:
+            target_date = date.today().strftime('%Y-%m-%d')
         
-        # Get all attendance records for today
-        today_records = db.query(Attendance).filter(Attendance.date == today).all()
+        # Get all attendance records for the target date
+        today_records = db.query(Attendance).filter(Attendance.date == target_date).all()
+        print(f"DEBUG: Querying attendance for date: {target_date}")
+        print(f"DEBUG: Found {len(today_records)} attendance records")
         
         # Get total employees
         total_employees = db.query(Employee).filter(Employee.is_active == "true").count()
@@ -380,18 +355,19 @@ async def get_today_attendance(
         formatted_records = []
         for record in today_records:
             formatted_record = {
+                "id": record.id,  # Add the attendance record ID
                 "employee_id": record.employee_id,
                 "employee_name": record.employee.name if record.employee else "Unknown",
                 "employee_code": record.employee.employee_id if record.employee else "Unknown",
                 "check_in": record.check_in.strftime('%H:%M:%S') if record.check_in else None,
                 "check_out": record.check_out.strftime('%H:%M:%S') if record.check_out else None,
                 "total_hours": record.total_hours,
-                "status": "checked_out" if record.check_out else "checked_in"
+                "status": record.status if record.status else ("present" if record.check_in else "absent")
             }
             formatted_records.append(formatted_record)
         
         return {
-            "date": today,
+            "date": target_date,
             "summary": {
                 "total_employees": total_employees,
                 "present": present_count,
