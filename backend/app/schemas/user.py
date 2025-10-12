@@ -24,7 +24,7 @@ class UserInDB(UserBase):
     is_active: str
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class User(UserInDB):
     pass

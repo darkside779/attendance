@@ -31,7 +31,6 @@ class PayrollPeriodResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        orm_mode = True
 
 class PayrollRecordResponse(BaseModel):
     id: int

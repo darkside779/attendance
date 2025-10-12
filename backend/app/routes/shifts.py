@@ -17,15 +17,15 @@ router = APIRouter()
 class ShiftCreate(BaseModel):
     employee_id: int
     shift_name: str = Field(..., min_length=1, max_length=50)
-    start_time: str = Field(..., regex=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')  # HH:MM format
-    end_time: str = Field(..., regex=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')    # HH:MM format
+    start_time: str = Field(..., pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')  # HH:MM format
+    end_time: str = Field(..., pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')    # HH:MM format
     days_of_week: List[str] = Field(..., min_items=1)
     description: Optional[str] = None
 
 class ShiftUpdate(BaseModel):
     shift_name: Optional[str] = Field(None, min_length=1, max_length=50)
-    start_time: Optional[str] = Field(None, regex=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
-    end_time: Optional[str] = Field(None, regex=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
+    start_time: Optional[str] = Field(None, pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
+    end_time: Optional[str] = Field(None, pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
     days_of_week: Optional[List[str]] = None
     description: Optional[str] = None
 
