@@ -29,7 +29,7 @@ class EmployeeService:
             position=employee.position,
             hire_date=employee.hire_date,
             salary_rate=employee.salary_rate or 0,
-            is_active="true",
+            is_active=True,
             created_by=created_by
         )
         self.db.add(db_employee)
@@ -57,7 +57,7 @@ class EmployeeService:
         if not db_employee:
             return False
         
-        db_employee.is_active = "false"
+        db_employee.is_active = False
         self.db.commit()
         return True
     
@@ -65,14 +65,14 @@ class EmployeeService:
         """Get list of employees with pagination"""
         query = self.db.query(Employee)
         if active_only:
-            query = query.filter(Employee.is_active == "true")
+            query = query.filter(Employee.is_active == True)
         return query.offset(skip).limit(limit).all()
     
     def get_employees_count(self, active_only: bool = True) -> int:
         """Get total count of employees"""
         query = self.db.query(Employee)
         if active_only:
-            query = query.filter(Employee.is_active == "true")
+            query = query.filter(Employee.is_active == True)
         return query.count()
     
     def search_employees(self, search_term: str, skip: int = 0, limit: int = 100) -> List[Employee]:
@@ -82,7 +82,7 @@ class EmployeeService:
             (Employee.name.like(search_pattern)) |
             (Employee.employee_id.like(search_pattern)) |
             (Employee.email.like(search_pattern))
-        ).filter(Employee.is_active == "true").offset(skip).limit(limit).all()
+        ).filter(Employee.is_active == True).offset(skip).limit(limit).all()
     
     def update_face_encoding(self, employee_id: int, face_encoding: str, image_path: str = None) -> Optional[Employee]:
         """Update employee face encoding and image path"""

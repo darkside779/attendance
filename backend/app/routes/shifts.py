@@ -15,7 +15,7 @@ router = APIRouter()
 
 # Pydantic models for request/response
 class ShiftCreate(BaseModel):
-    employee_id: int
+    employee_id: Optional[int] = None  # None for templates, int for assigned shifts
     shift_name: str = Field(..., min_length=1, max_length=50)
     start_time: str = Field(..., pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')  # HH:MM format
     end_time: str = Field(..., pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')    # HH:MM format
@@ -31,13 +31,15 @@ class ShiftUpdate(BaseModel):
 
 class ShiftResponse(BaseModel):
     id: int
-    employee_id: Optional[int]
+    employee_id: Optional[int] = None
+    employee_name: Optional[str] = None
+    employee_employee_id: Optional[str] = None
     shift_name: str
     start_time: str
     end_time: str
     days_of_week: List[str]
-    description: Optional[str]
-    is_active: str = "true"  # Default value
+    description: Optional[str] = None
+    is_active: bool = True
     
     class Config:
         from_attributes = True
@@ -67,9 +69,9 @@ async def create_shift(
         
         shift = shift_service.create_shift(shift_data.dict())
         
-        # Get shift with employee info for response
-        shifts_with_employees = shift_service.get_shifts_with_employees()
-        created_shift = next((s for s in shifts_with_employees if s["id"] == shift.id), None)
+        # Get shift with employee info for response (works for both templates and assigned shifts)
+        all_shifts = shift_service.get_all_shifts_including_templates()
+        created_shift = next((s for s in all_shifts if s["id"] == shift.id), None)
         
         if not created_shift:
             raise HTTPException(
@@ -92,10 +94,10 @@ async def get_all_shifts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all shifts with employee information"""
+    """Get all shifts including templates and assigned shifts"""
     try:
         shift_service = ShiftService(db)
-        shifts = shift_service.get_shifts_with_employees(skip=skip, limit=limit)
+        shifts = shift_service.get_all_shifts_including_templates(skip=skip, limit=limit)
         return shifts
     except Exception as e:
         raise HTTPException(

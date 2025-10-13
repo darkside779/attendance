@@ -6,7 +6,7 @@ from typing import List
 
 class Settings:
     # Database
-    DATABASE_URL: str = "sqlite:///./attendance.db"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./attendance.db")
     
     # Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")

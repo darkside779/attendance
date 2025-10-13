@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -17,7 +17,7 @@ class Employee(Base):
     position = Column(String(50), nullable=True)
     hire_date = Column(DateTime(timezone=True), nullable=True)
     salary_rate = Column(Integer, default=0)  # Rate per hour in cents
-    is_active = Column(String(10), default="true")
+    is_active = Column(Boolean, default=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

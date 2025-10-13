@@ -24,14 +24,14 @@ class EmployeeUpdate(BaseModel):
     department: Optional[str] = None
     position: Optional[str] = None
     salary_rate: Optional[int] = None
-    is_active: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class EmployeeInDB(EmployeeBase):
     id: int
     face_encoding: Optional[str] = None
     face_image_path: Optional[str] = None
     hire_date: Optional[datetime] = None
-    is_active: str
+    is_active: bool
     created_by: int
     created_at: datetime
     updated_at: Optional[datetime] = None

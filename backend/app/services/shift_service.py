@@ -27,7 +27,7 @@ class ShiftService:
         
         # Ensure is_active is set
         if 'is_active' not in shift_data:
-            shift_data['is_active'] = 'true'
+            shift_data['is_active'] = True
         
         shift = Shift(**shift_data)
         self.db.add(shift)
@@ -42,12 +42,12 @@ class ShiftService:
     def get_shifts_by_employee(self, employee_id: int) -> List[Shift]:
         """Get all shifts for a specific employee"""
         return self.db.query(Shift).filter(
-            and_(Shift.employee_id == employee_id, Shift.is_active == "true")
+            and_(Shift.employee_id == employee_id, Shift.is_active == True)
         ).all()
 
     def get_all_shifts(self, skip: int = 0, limit: int = 100) -> List[Shift]:
         """Get all shifts with pagination"""
-        return self.db.query(Shift).filter(Shift.is_active == "true").offset(skip).limit(limit).all()
+        return self.db.query(Shift).filter(Shift.is_active == True).offset(skip).limit(limit).all()
 
     def update_shift(self, shift_id: int, shift_data: dict) -> Optional[Shift]:
         """Update an existing shift"""
@@ -79,14 +79,14 @@ class ShiftService:
         if not shift:
             return False
         
-        shift.is_active = "false"
+        shift.is_active = False
         self.db.commit()
         return True
 
     def get_shifts_with_employees(self, skip: int = 0, limit: int = 100) -> List[dict]:
         """Get all shifts with employee information"""
         shifts = self.db.query(Shift).join(Employee).filter(
-            Shift.is_active == "true"
+            Shift.is_active == True
         ).offset(skip).limit(limit).all()
         
         result = []
@@ -138,7 +138,7 @@ class ShiftService:
                 "end_time": time(17, 0),   # 5:00 PM
                 "days_of_week": json.dumps(["monday", "tuesday", "wednesday", "thursday", "friday"]),
                 "description": "Standard morning shift - 9 AM to 5 PM, Monday to Friday",
-                "is_active": "true"
+                "is_active": True
             },
             {
                 "shift_name": "Evening Shift", 
@@ -146,7 +146,7 @@ class ShiftService:
                 "end_time": time(22, 0),   # 10:00 PM
                 "days_of_week": json.dumps(["monday", "tuesday", "wednesday", "thursday", "friday"]),
                 "description": "Evening shift - 2 PM to 10 PM, Monday to Friday",
-                "is_active": "true"
+                "is_active": True
             },
             {
                 "shift_name": "Night Shift",
@@ -154,7 +154,7 @@ class ShiftService:
                 "end_time": time(6, 0),    # 6:00 AM
                 "days_of_week": json.dumps(["sunday", "monday", "tuesday", "wednesday", "thursday"]),
                 "description": "Night shift - 10 PM to 6 AM, Sunday to Thursday",
-                "is_active": "true"
+                "is_active": True
             },
             {
                 "shift_name": "Weekend Shift",
@@ -162,7 +162,7 @@ class ShiftService:
                 "end_time": time(18, 0),   # 6:00 PM
                 "days_of_week": json.dumps(["saturday", "sunday"]),
                 "description": "Weekend shift - 10 AM to 6 PM, Saturday and Sunday",
-                "is_active": "true"
+                "is_active": True
             }
         ]
         
@@ -188,6 +188,53 @@ class ShiftService:
         
         return created_shifts
 
+    def get_all_shifts_including_templates(self, skip: int = 0, limit: int = 100) -> List[dict]:
+        """Get all shifts including both assigned shifts and templates"""
+        from app.models.employee import Employee
+        
+        # Query shifts with LEFT JOIN to employees to get employee data
+        query = self.db.query(Shift, Employee).outerjoin(Employee, Shift.employee_id == Employee.id).filter(
+            Shift.is_active == True
+        ).offset(skip).limit(limit)
+        
+        result = []
+        for shift, employee in query.all():
+            # For assigned shifts (with employee_id)
+            if shift.employee_id and employee:
+                shift_dict = {
+                    "id": shift.id,
+                    "employee_id": shift.employee_id,
+                    "employee_name": employee.name,
+                    "employee_employee_id": employee.employee_id,
+                    "shift_name": shift.shift_name,
+                    "start_time": shift.start_time.strftime('%H:%M') if shift.start_time else None,
+                    "end_time": shift.end_time.strftime('%H:%M') if shift.end_time else None,
+                    "days_of_week": json.loads(shift.days_of_week) if shift.days_of_week else [],
+                    "description": shift.description,
+                    "is_active": shift.is_active,
+                    "created_at": shift.created_at,
+                    "updated_at": shift.updated_at
+                }
+            else:
+                # For templates (employee_id is None)
+                shift_dict = {
+                    "id": shift.id,
+                    "employee_id": None,
+                    "employee_name": "Template",
+                    "employee_employee_id": "TEMPLATE",
+                    "shift_name": shift.shift_name,
+                    "start_time": shift.start_time.strftime('%H:%M') if shift.start_time else None,
+                    "end_time": shift.end_time.strftime('%H:%M') if shift.end_time else None,
+                    "days_of_week": json.loads(shift.days_of_week) if shift.days_of_week else [],
+                    "description": shift.description,
+                    "is_active": shift.is_active,
+                    "created_at": shift.created_at,
+                    "updated_at": shift.updated_at
+                }
+            result.append(shift_dict)
+        
+        return result
+
     def get_shift_templates(self) -> List[dict]:
         """Get predefined shift templates"""
         templates = self.db.query(Shift).filter(Shift.employee_id == None).all()
@@ -196,11 +243,13 @@ class ShiftService:
         for template in templates:
             template_dict = {
                 "id": template.id,
+                "employee_id": template.employee_id,  # Will be None for templates
                 "shift_name": template.shift_name,
                 "start_time": template.start_time.strftime('%H:%M') if template.start_time else None,
                 "end_time": template.end_time.strftime('%H:%M') if template.end_time else None,
                 "days_of_week": json.loads(template.days_of_week) if template.days_of_week else [],
-                "description": template.description
+                "description": template.description,
+                "is_active": template.is_active
             }
             result.append(template_dict)
         
@@ -220,7 +269,7 @@ class ShiftService:
             "end_time": template.end_time,
             "days_of_week": template.days_of_week,
             "description": template.description,
-            "is_active": "true"
+            "is_active": True
         }
         
         return self.create_shift(shift_data)

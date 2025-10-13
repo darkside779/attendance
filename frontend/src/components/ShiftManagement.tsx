@@ -101,6 +101,7 @@ const ShiftManagement: React.FC = () => {
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Shift | null>(null);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
 
   useEffect(() => {
     loadShifts();
@@ -111,8 +112,11 @@ const ShiftManagement: React.FC = () => {
   const loadShifts = async () => {
     try {
       setLoading(true);
+      
+      // Load all shifts (both assigned and templates) from single endpoint
       const response = await api.get('/shifts');
-      setShifts(response.data);
+      setShifts(response.data || []);
+      
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to load shifts';
       setError(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
@@ -173,6 +177,7 @@ const ShiftManagement: React.FC = () => {
       setLoading(true);
       await api.post('/shifts/templates/create');
       await loadShiftTemplates();
+      await loadShifts(); // Refresh main table to show new templates
       setSuccess('Predefined shift templates created successfully!');
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to create templates';
@@ -184,17 +189,33 @@ const ShiftManagement: React.FC = () => {
 
   const handleCreateShift = async () => {
     try {
-      if (!shiftForm.employee_id || !shiftForm.shift_name || shiftForm.days_of_week.length === 0) {
-        setError('Please fill in all required fields');
+      // Validate required fields
+      if (!shiftForm.shift_name || shiftForm.days_of_week.length === 0) {
+        setError('Please fill in shift name and select days');
+        return;
+      }
+      
+      // For assigned shifts, employee is required
+      if (!isCreatingTemplate && !shiftForm.employee_id) {
+        setError('Please select an employee for assigned shifts');
         return;
       }
 
       setLoading(true);
-      await api.post('/shifts', shiftForm);
+      
+      // Prepare form data - set employee_id to null for templates
+      const formData = {
+        ...shiftForm,
+        employee_id: isCreatingTemplate ? null : shiftForm.employee_id
+      };
+      
+      await api.post('/shifts', formData);
       await loadShifts();
+      await loadShiftTemplates(); // Refresh templates if we created a template
       setCreateDialogOpen(false);
       resetForm();
-      setSuccess('Shift created successfully!');
+      setIsCreatingTemplate(false);
+      setSuccess(isCreatingTemplate ? 'Template created successfully!' : 'Shift created successfully!');
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to create shift';
       setError(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
@@ -218,6 +239,7 @@ const ShiftManagement: React.FC = () => {
 
       await api.put(`/shifts/${editingShift.id}`, updateData);
       await loadShifts();
+      await loadShiftTemplates(); // Refresh templates for assign dialog
       setEditDialogOpen(false);
       resetForm();
       setSuccess('Shift updated successfully!');
@@ -236,6 +258,7 @@ const ShiftManagement: React.FC = () => {
       setLoading(true);
       await api.delete(`/shifts/${shiftId}`);
       await loadShifts();
+      await loadShiftTemplates(); // Refresh templates for assign dialog
       setSuccess('Shift deleted successfully!');
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to delete shift';
@@ -248,7 +271,7 @@ const ShiftManagement: React.FC = () => {
   const handleAssignShift = async () => {
     try {
       if (!selectedEmployee || !selectedTemplate) {
-        setError('Please select both employee and template');
+        setError('Please select both employee and shift');
         return;
       }
 
@@ -280,6 +303,7 @@ const ShiftManagement: React.FC = () => {
       description: ''
     });
     setEditingShift(null);
+    setIsCreatingTemplate(false);
   };
 
   const openEditDialog = (shift: Shift) => {
@@ -318,6 +342,41 @@ const ShiftManagement: React.FC = () => {
     }
     
     return `${diff} hours`;
+  };
+
+  const handleEditTemplate = (template: Shift) => {
+    setShiftForm({
+      shift_name: template.shift_name,
+      start_time: template.start_time,
+      end_time: template.end_time,
+      days_of_week: template.days_of_week,
+      description: template.description || '',
+      employee_id: null
+    });
+    setEditingShift(template);
+    setEditDialogOpen(true);
+    setTemplatesDialogOpen(false);
+  };
+
+  const handleDeleteTemplate = async (templateId: number) => {
+    if (!window.confirm('Are you sure you want to delete this shift template?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.delete(`/shifts/${templateId}`);
+      setSuccess('Template deleted successfully!');
+      setError('');
+      loadShiftTemplates();
+      loadShifts(); // Refresh main table
+    } catch (error: any) {
+      console.error('❌ Error deleting template:', error);
+      setError(error.response?.data?.detail || 'Failed to delete template');
+      setSuccess('');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -374,7 +433,7 @@ const ShiftManagement: React.FC = () => {
                     Total Shifts
                   </Typography>
                   <Typography variant="h4">
-                    {shifts.length}
+                    {shifts.filter(s => s.employee_id).length}
                   </Typography>
                 </Box>
                 <ScheduleIcon sx={{ fontSize: 40, color: 'primary.main' }} />
@@ -391,7 +450,7 @@ const ShiftManagement: React.FC = () => {
                     Employees with Shifts
                   </Typography>
                   <Typography variant="h4">
-                    {new Set(shifts.map(s => s.employee_id)).size}
+                    {new Set(shifts.filter(s => s.employee_id).map(s => s.employee_id)).size}
                   </Typography>
                 </Box>
                 <PersonIcon sx={{ fontSize: 40, color: 'success.main' }} />
@@ -439,7 +498,7 @@ const ShiftManagement: React.FC = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Employee Shifts
+            All Shifts (Assigned & Templates)
           </Typography>
           <TableContainer component={Paper}>
             <Table>
@@ -456,10 +515,20 @@ const ShiftManagement: React.FC = () => {
               </TableHead>
               <TableBody>
                 {shifts.map((shift) => (
-                  <TableRow key={shift.id}>
+                  <TableRow 
+                    key={shift.id}
+                    sx={{ 
+                      backgroundColor: shift.employee_id ? 'inherit' : 'action.hover',
+                      '&:hover': { backgroundColor: 'action.selected' }
+                    }}
+                  >
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" fontWeight="bold">
+                        <Typography 
+                          variant="body2" 
+                          fontWeight="bold"
+                          color={shift.employee_id ? 'inherit' : 'primary.main'}
+                        >
                           {shift.employee_name}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
@@ -527,19 +596,36 @@ const ShiftManagement: React.FC = () => {
       </Card>
 
       {/* Create Shift Dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={createDialogOpen} onClose={() => { setCreateDialogOpen(false); resetForm(); }} maxWidth="md" fullWidth>
         <DialogTitle>Create New Shift</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <Autocomplete
-              options={employees}
-              getOptionLabel={(option) => `${option.name} (${option.employee_id})`}
-              value={employees?.find?.(e => e.id === shiftForm.employee_id) || null}
-              onChange={(_, value) => setShiftForm({ ...shiftForm, employee_id: value?.id || null })}
-              renderInput={(params) => (
-                <TextField {...params} label="Employee" required />
-              )}
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isCreatingTemplate}
+                  onChange={(e) => {
+                    setIsCreatingTemplate(e.target.checked);
+                    if (e.target.checked) {
+                      setShiftForm({ ...shiftForm, employee_id: null });
+                    }
+                  }}
+                />
+              }
+              label="Create as Template (not assigned to specific employee)"
             />
+            
+            {!isCreatingTemplate && (
+              <Autocomplete
+                options={employees}
+                getOptionLabel={(option) => `${option.name} (${option.employee_id})`}
+                value={employees?.find?.(e => e.id === shiftForm.employee_id) || null}
+                onChange={(_, value) => setShiftForm({ ...shiftForm, employee_id: value?.id || null })}
+                renderInput={(params) => (
+                  <TextField {...params} label="Employee" required />
+                )}
+              />
+            )}
             
             <TextField
               label="Shift Name"
@@ -610,7 +696,9 @@ const ShiftManagement: React.FC = () => {
 
       {/* Edit Shift Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Edit Shift</DialogTitle>
+        <DialogTitle>
+          {editingShift?.employee_id ? 'Edit Assigned Shift' : 'Edit Shift Template'}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
@@ -682,7 +770,7 @@ const ShiftManagement: React.FC = () => {
 
       {/* Assign Shift Dialog */}
       <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Assign Shift Template</DialogTitle>
+        <DialogTitle>Assign Shift to Employee</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <Autocomplete
@@ -696,19 +784,19 @@ const ShiftManagement: React.FC = () => {
             />
             
             <Autocomplete
-              options={shiftTemplates}
-              getOptionLabel={(option) => `${option.shift_name} (${option.start_time} - ${option.end_time})`}
+              options={shifts}
+              getOptionLabel={(option) => `${option.shift_name} (${option.start_time} - ${option.end_time}) - ${option.employee_name}`}
               value={selectedTemplate}
               onChange={(_, value) => setSelectedTemplate(value)}
               renderInput={(params) => (
-                <TextField {...params} label="Select Shift Template" required />
+                <TextField {...params} label="Select Shift to Assign" required />
               )}
             />
             
             {selectedTemplate && (
               <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
                 <Typography variant="subtitle2" gutterBottom>
-                  Template Details:
+                  Shift Details:
                 </Typography>
                 <Typography variant="body2">
                   <strong>Name:</strong> {selectedTemplate.shift_name}
@@ -755,9 +843,27 @@ const ShiftManagement: React.FC = () => {
               {shiftTemplates.map((template) => (
                 <Card key={template.id} variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      {template.shift_name}
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                      <Typography variant="h6" gutterBottom>
+                        {template.shift_name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleEditTemplate(template)}
+                          color="primary"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleDeleteTemplate(template.id)}
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                    </Box>
                     <Typography variant="body2" color="textSecondary">
                       <strong>Time:</strong> {template.start_time} - {template.end_time}
                     </Typography>
