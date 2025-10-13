@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Initialize database with admin user
+Initialize database with all tables and admin user
 """
 import sys
 import os
@@ -10,7 +10,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.user import User, UserRole
 from app.core.config import settings
+from app.core.database import Base, engine
 import bcrypt
+
+# Import all models to ensure they're registered with Base
+from app.models import user, employee, attendance, shift, payroll
 
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
@@ -19,11 +23,27 @@ def hash_password(password: str) -> str:
     return hashed.decode('utf-8')
 
 def init_database():
-    # Create database engine
-    engine = create_engine(settings.DATABASE_URL)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    print("🗄️ Initializing database...")
+    
+    # Create all tables
+    print("📋 Creating database tables...")
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created successfully!")
+        
+        # Verify tables were created
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+            tables = [row[0] for row in result]
+            print(f"📊 Created tables: {tables}")
+            
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+        raise
     
     # Create session
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
     
     try:

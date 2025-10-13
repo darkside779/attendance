@@ -34,4 +34,10 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
 6. Deploy!
 
 ### Database
-The system will automatically use PostgreSQL when `DATABASE_URL` environment variable is provided by Render.
+- **SQLite Fallback**: Uses SQLite database (`attendance.db`) if PostgreSQL is not available
+- **Auto-Detection**: Automatically detects and fixes malformed DATABASE_URL from Render
+- **Data Included**: Contains existing employee and attendance data
+- **PostgreSQL Ready**: Will automatically use PostgreSQL when proper `DATABASE_URL` is provided
+
+### Database Error Fix
+The system now handles the common Render issue where `DATABASE_URL` contains HTTP URLs instead of proper database connection strings. It automatically falls back to SQLite with your existing data.
