@@ -67,11 +67,28 @@ async def health_check():
 @app.get("/api/v1/health")
 async def api_health_check():
     """Health check endpoint for API monitoring"""
+    # Test database connection
+    db_status = "disconnected"
+    table_count = 0
+    
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT COUNT(*) FROM sqlite_master WHERE type='table'"))
+            table_count = result.scalar()
+            db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)[:50]}"
+    
     return {
         "status": "healthy",
         "api_version": "v1",
         "environment": ENVIRONMENT,
-        "database": "connected" if settings.DATABASE_URL else "not configured"
+        "database": db_status,
+        "tables": table_count,
+        "port": PORT
     }
 
 # Include routers
