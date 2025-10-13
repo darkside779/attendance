@@ -92,6 +92,74 @@ async def startup_event():
     logging.info("🚀 Attendance Management System starting up...")
     logging.info(f"📊 Environment: {ENVIRONMENT}")
     logging.info(f"🔗 Database URL configured: {'Yes' if settings.DATABASE_URL else 'No'}")
+    
+    # Initialize database tables on startup
+    try:
+        from app.core.database import Base, engine
+        from sqlalchemy import text
+        
+        logging.info("🗄️ Checking database tables...")
+        
+        # Check if tables exist
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+            existing_tables = [row[0] for row in result]
+            
+        required_tables = ['users', 'employees', 'attendance', 'shifts']
+        missing_tables = [t for t in required_tables if t not in existing_tables]
+        
+        if missing_tables:
+            logging.warning(f"⚠️ Missing tables: {missing_tables}")
+            logging.info("📋 Creating database tables...")
+            
+            # Import all models to ensure they're registered
+            from app.models import user, employee, attendance, shift, payroll
+            
+            # Create all tables
+            Base.metadata.create_all(bind=engine)
+            
+            # Verify tables were created
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+                new_tables = [row[0] for row in result]
+            
+            logging.info(f"✅ Database tables created: {new_tables}")
+            
+            # Create admin user if it doesn't exist
+            from app.models.user import User, UserRole
+            from sqlalchemy.orm import sessionmaker
+            import bcrypt
+            
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            db = SessionLocal()
+            
+            try:
+                admin_user = db.query(User).filter(User.username == "admin").first()
+                if not admin_user:
+                    salt = bcrypt.gensalt()
+                    hashed = bcrypt.hashpw("admin123".encode('utf-8'), salt)
+                    
+                    admin_user = User(
+                        username="admin",
+                        email="admin@example.com",
+                        hashed_password=hashed.decode('utf-8'),
+                        role=UserRole.ADMIN,
+                        is_active=True
+                    )
+                    db.add(admin_user)
+                    db.commit()
+                    logging.info("👤 Admin user created (admin/admin123)")
+                else:
+                    logging.info("👤 Admin user already exists")
+            finally:
+                db.close()
+        else:
+            logging.info(f"✅ All required tables exist: {existing_tables}")
+            
+    except Exception as e:
+        logging.error(f"❌ Database initialization error: {e}")
+        # Don't fail startup, just log the error
+    
     logging.info("✅ Application startup complete")
 
 @app.on_event("shutdown")
