@@ -3,7 +3,7 @@ Report generation service for PDF and Excel exports
 """
 import io
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List, Optional
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
@@ -178,26 +178,44 @@ class ReportService:
     def get_employee_summary(self, employee_id: int, start_date: Optional[date] = None, 
                            end_date: Optional[date] = None) -> dict:
         """Get summary statistics for an employee"""
-        query = self.db.query(Attendance).filter(Attendance.employee_id == employee_id)
         
-        if start_date:
-            query = query.filter(Attendance.date >= start_date.strftime('%Y-%m-%d'))
-        if end_date:
-            query = query.filter(Attendance.date <= end_date.strftime('%Y-%m-%d'))
-            
+        # If no date range provided, use a reasonable default (last 30 days)
+        if not start_date or not end_date:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=30)
+        
+        # Get attendance records for the period
+        query = self.db.query(Attendance).filter(Attendance.employee_id == employee_id)
+        query = query.filter(Attendance.date >= start_date.strftime('%Y-%m-%d'))
+        query = query.filter(Attendance.date <= end_date.strftime('%Y-%m-%d'))
         records = query.all()
         
-        total_days = len(records)
-        present_days = len([r for r in records if r.status == 'present'])
-        late_days = len([r for r in records if r.status == 'late'])
-        absent_days = len([r for r in records if r.status == 'absent'])
+        # Calculate expected working days (Monday to Friday only)
+        current_date = start_date
+        expected_working_days = 0
+        
+        while current_date <= end_date:
+            # Count weekdays only (Monday=0, Sunday=6)
+            if current_date.weekday() < 5:  # Monday to Friday
+                expected_working_days += 1
+            current_date += timedelta(days=1)
+        
+        # Count actual attendance
+        present_days = len([r for r in records if r.check_in is not None])
+        late_days = len([r for r in records if r.check_in and r.check_in.time() > datetime.strptime("09:00", "%H:%M").time()])
         total_hours = sum([r.total_hours or 0 for r in records])
         
+        # Calculate absent days correctly: Expected - Present
+        absent_days = max(0, expected_working_days - present_days)
+        
+        # Calculate attendance rate: Present / Expected * 100
+        attendance_rate = round((present_days / expected_working_days * 100) if expected_working_days > 0 else 0, 2)
+        
         return {
-            'total_days': total_days,
-            'present_days': present_days,
-            'late_days': late_days,
-            'absent_days': absent_days,
-            'total_hours': round(total_hours, 2),
-            'attendance_rate': round((present_days / total_days * 100) if total_days > 0 else 0, 2)
+            'total_days': expected_working_days,  # Expected working days in period
+            'present_days': present_days,         # Days with check-in
+            'late_days': late_days,              # Days late (after 9:00 AM)
+            'absent_days': absent_days,          # Expected - Present
+            'total_hours': round(total_hours, 2), # Sum of all hours worked
+            'attendance_rate': attendance_rate    # (Present / Expected) * 100
         }
