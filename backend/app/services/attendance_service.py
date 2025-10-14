@@ -23,6 +23,9 @@ class AttendanceService:
         if check_in_time is None:
             check_in_time = datetime.now()
         
+        # Ensure check_in_time is timezone-naive
+        check_in_time = check_in_time.replace(tzinfo=None) if check_in_time.tzinfo else check_in_time
+        
         today = check_in_time.date().strftime('%Y-%m-%d')
         day_name = check_in_time.strftime('%A').lower()
         
@@ -92,6 +95,9 @@ class AttendanceService:
         if check_out_time is None:
             check_out_time = datetime.now()
         
+        # Ensure check_out_time is timezone-naive
+        check_out_time = check_out_time.replace(tzinfo=None) if check_out_time.tzinfo else check_out_time
+        
         today = check_out_time.date().strftime('%Y-%m-%d')
         
         # Find today's attendance record
@@ -109,8 +115,11 @@ class AttendanceService:
                 "message": "No check-in record found for today"
             }
         
-        # Calculate total hours
-        time_diff = check_out_time - attendance.check_in
+        # Calculate total hours - ensure both datetimes are timezone-naive
+        check_out_naive = check_out_time.replace(tzinfo=None) if check_out_time.tzinfo else check_out_time
+        check_in_naive = attendance.check_in.replace(tzinfo=None) if attendance.check_in.tzinfo else attendance.check_in
+        
+        time_diff = check_out_naive - check_in_naive
         total_hours = time_diff.total_seconds() / 3600
         
         # Calculate overtime if shift is assigned

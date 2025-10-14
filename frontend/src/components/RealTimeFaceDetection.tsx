@@ -86,9 +86,24 @@ const RealTimeFaceDetection: React.FC<RealTimeFaceDetectionProps> = ({
           }
         };
       }
-    } catch (err) {
-      setError('Failed to access camera. Please ensure camera permissions are granted.');
+    } catch (err: any) {
       console.error('Camera access error:', err);
+      
+      let errorMessage = 'Failed to access camera. ';
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage += 'Camera permission denied. Please allow camera access and try again.';
+      } else if (err.name === 'NotSecureError' || err.message?.includes('secure')) {
+        errorMessage += 'Camera access requires HTTPS or localhost. Try accessing via: http://localhost:3000 or enable insecure origins in browser settings.';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage += 'No camera found on this device.';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage += 'Camera is being used by another application.';
+      } else {
+        errorMessage += 'Please ensure camera permissions are granted and try again.';
+      }
+      
+      setError(errorMessage);
     }
   }, []);
 

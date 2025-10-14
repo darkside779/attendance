@@ -83,7 +83,11 @@ class AttendanceModificationService:
     def _recalculate_total_hours(self, attendance: Attendance):
         """Recalculate total hours based on check_in and check_out times"""
         if attendance.check_in and attendance.check_out:
-            time_diff = attendance.check_out - attendance.check_in
+            # Ensure both datetimes are timezone-naive before calculation
+            check_in_naive = attendance.check_in.replace(tzinfo=None) if attendance.check_in.tzinfo else attendance.check_in
+            check_out_naive = attendance.check_out.replace(tzinfo=None) if attendance.check_out.tzinfo else attendance.check_out
+            
+            time_diff = check_out_naive - check_in_naive
             attendance.total_hours = time_diff.total_seconds() / 3600  # Convert to hours
         else:
             attendance.total_hours = 0.0

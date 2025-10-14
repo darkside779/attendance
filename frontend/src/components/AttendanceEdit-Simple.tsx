@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiBaseUrl } from '../utils/apiUrl';
 import {
   Box,
   Card,
@@ -204,7 +205,7 @@ const AttendanceEdit: React.FC = () => {
       for (const mod of modifications) {
         // console.log('Sending modification:', mod); // Debug log
         
-        const response = await fetch('http://127.0.0.1:8001/api/v1/reports/modify-attendance', {
+        const response = await fetch(`${getApiBaseUrl()}/reports/modify-attendance`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -233,7 +234,7 @@ const AttendanceEdit: React.FC = () => {
   const handleViewHistory = async (recordId: number) => {
     setLoading(true);
     try {
-      const response = await fetch(`http://127.0.0.1:8001/api/v1/reports/modification-history/${recordId}`, {
+      const response = await fetch(`${getApiBaseUrl()}/reports/modification-history/${recordId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

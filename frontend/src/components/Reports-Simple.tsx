@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiBaseUrl } from '../utils/apiUrl';
 import {
   Box,
   Card,
@@ -83,7 +84,7 @@ const Reports: React.FC = () => {
       if (endDate) params.append('end_date', endDate.toISOString().split('T')[0]);
       if (selectedEmployee) params.append('employee_id', selectedEmployee.toString());
 
-      const response = await fetch(`http://127.0.0.1:8001/api/v1/reports/pdf?${params}`, {
+      const response = await fetch(`${getApiBaseUrl()}/reports/pdf?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -119,7 +120,7 @@ const Reports: React.FC = () => {
       if (endDate) params.append('end_date', endDate.toISOString().split('T')[0]);
       if (selectedEmployee) params.append('employee_id', selectedEmployee.toString());
 
-      const response = await fetch(`http://127.0.0.1:8001/api/v1/reports/excel?${params}`, {
+      const response = await fetch(`${getApiBaseUrl()}/reports/excel?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -158,7 +159,7 @@ const Reports: React.FC = () => {
             if (startDate) params.append('start_date', startDate.toISOString().split('T')[0]);
             if (endDate) params.append('end_date', endDate.toISOString().split('T')[0]);
 
-            const response = await fetch(`http://127.0.0.1:8001/api/v1/reports/employee-summary/${employee.id}?${params}`, {
+            const response = await fetch(`${getApiBaseUrl()}/reports/employee-summary/${employee.id}?${params}`, {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
               }
@@ -197,7 +198,7 @@ const Reports: React.FC = () => {
         if (startDate) params.append('start_date', startDate.toISOString().split('T')[0]);
         if (endDate) params.append('end_date', endDate.toISOString().split('T')[0]);
 
-        const response = await fetch(`http://127.0.0.1:8001/api/v1/reports/employee-summary/${selectedEmployee}?${params}`, {
+        const response = await fetch(`${getApiBaseUrl()}/reports/employee-summary/${selectedEmployee}?${params}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
