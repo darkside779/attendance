@@ -317,10 +317,14 @@ async def detect_faces_realtime(
         
         print(f"DEBUG: Total known features loaded: {len(known_features)}")
         
-        # Try to recognize each detected face
+        # Try to recognize each detected face and find the best overall match
         recognized_faces = []
+        best_match = None
+        best_confidence = 0.0
+        
         print(f"DEBUG: Processing {len(detection_result['recognized'])} detected faces")
         print(f"DEBUG: Known features available: {len(known_features)}")
+        
         for face_data in detection_result['recognized']:
             if known_features and face_data['features']:
                 print(f"DEBUG: Trying to match face with {len(face_data['features'])} features")
@@ -335,29 +339,32 @@ async def detect_faces_realtime(
                     employee_info = employee_map.get(employee_id)
                     
                     if employee_info:
-                        recognized_faces.append({
-                            'face_id': face_data['face_id'],
-                            'employee_name': employee_info['name'],
-                            'employee_id': employee_info['employee_id'],
-                            'department': employee_info['department'],
-                            'confidence': round((1 - confidence) * 100, 2)
-                        })
-                    else:
-                        recognized_faces.append({
-                            'face_id': face_data['face_id'],
-                            'employee_name': 'Unknown',
-                            'employee_id': None,
-                            'department': None,
-                            'confidence': 0.0
-                        })
-                else:
-                    recognized_faces.append({
-                        'face_id': face_data['face_id'],
-                        'employee_name': 'Unknown',
-                        'employee_id': None,
-                        'department': None,
-                        'confidence': 0.0
-                    })
+                        match_confidence = round((1 - confidence) * 100, 2)
+                        
+                        # Keep track of the best match
+                        if match_confidence > best_confidence:
+                            best_confidence = match_confidence
+                            best_match = {
+                                'face_id': face_data['face_id'],
+                                'employee_name': employee_info['name'],
+                                'employee_id': employee_info['employee_id'],
+                                'department': employee_info['department'],
+                                'confidence': match_confidence
+                            }
+        
+        # Only return the best match if confidence is above threshold (60%)
+        if best_match and best_confidence >= 60.0:
+            recognized_faces.append(best_match)
+        else:
+            # If no good match found, return unknown for the first face only
+            if detection_result['recognized']:
+                recognized_faces.append({
+                    'face_id': 0,
+                    'employee_name': 'Unknown',
+                    'employee_id': None,
+                    'department': None,
+                    'confidence': 0.0
+                })
         
         return {
             "faces_detected": len(detection_result['faces']),

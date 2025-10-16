@@ -258,8 +258,8 @@ class SimpleFaceService:
             height, width = image.shape[:2]
             
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            # Use lenient parameters for real-time detection
-            faces = self.face_cascade.detectMultiScale(gray, 1.1, 3, minSize=(30, 30))
+            # Use more strict parameters to avoid false detections
+            faces = self.face_cascade.detectMultiScale(gray, 1.2, 5, minSize=(50, 50), maxSize=(300, 300))
             
             face_list = []
             recognized_list = []
