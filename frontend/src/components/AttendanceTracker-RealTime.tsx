@@ -19,6 +19,8 @@ import {
   ArrowBack
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 import RealTimeFaceDetection from './RealTimeFaceDetection';
 import { attendanceAPI } from '../services/attendanceAPI';
 
@@ -42,6 +44,7 @@ interface AttendanceRecord {
 
 const AttendanceTrackerRealTime: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
   const [mode, setMode] = useState<'check-in' | 'check-out'>('check-in');
   const [detectedEmployee, setDetectedEmployee] = useState<RecognizedEmployee | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -158,7 +161,13 @@ const AttendanceTrackerRealTime: React.FC = () => {
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/dashboard')}
+          onClick={() => {
+            if (user?.role === 'accounting') {
+              navigate('/accounting-dashboard');
+            } else {
+              navigate('/dashboard');
+            }
+          }}
           variant="outlined"
         >
           Back to Dashboard

@@ -36,6 +36,8 @@ import {
 import RealTimeFaceDetection from './RealTimeFaceDetection';
 import {attendanceAPI} from '../services/attendanceAPI';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 import FaceCapture from './FaceCapture';
 
 interface AttendanceRecord {
@@ -58,6 +60,7 @@ interface AttendanceSummary {
 
 const AttendanceTracker: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
   const [mode, setMode] = useState<'check-in' | 'check-out' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -131,7 +134,13 @@ const AttendanceTracker: React.FC = () => {
           <IconButton
             edge="start"
             color="inherit"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => {
+              if (user?.role === 'accounting') {
+                navigate('/accounting-dashboard');
+              } else {
+                navigate('/dashboard');
+              }
+            }}
             sx={{ mr: 2 }}
           >
             <ArrowBack />

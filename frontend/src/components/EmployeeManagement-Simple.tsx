@@ -165,7 +165,13 @@ const EmployeeManagement: React.FC = () => {
           <IconButton
             edge="start"
             color="inherit"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => {
+              if (user?.role === 'accounting') {
+                navigate('/accounting-dashboard');
+              } else {
+                navigate('/dashboard');
+              }
+            }}
             sx={{ mr: 2 }}
           >
             <ArrowBack />

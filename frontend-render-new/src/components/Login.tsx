@@ -92,7 +92,7 @@ const Login: React.FC = () => {
               Demo Credentials:
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Username: admin | Password: admin123
+              Username:  | Password: 
             </Typography>
           </Box>
         </Paper>

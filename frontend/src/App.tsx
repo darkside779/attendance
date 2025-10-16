@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { store } from './store';
 import { Dashboard, EmployeeManagement, AttendanceTracker, AttendanceTrackerRealTime, RealTimeFaceRegistration, Reports, AttendanceEdit, PayrollManagement, ShiftManagement } from './components';
+import AccountingDashboard from './components/AccountingDashboard';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import SystemLockScreen from './components/SystemLockScreen';
@@ -51,6 +52,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting-dashboard"
+              element={
+                <ProtectedRoute>
+                  <AccountingDashboard />
                 </ProtectedRoute>
               }
             />

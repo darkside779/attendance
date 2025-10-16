@@ -23,9 +23,18 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await dispatch(login({ username, password })).unwrap();
-      await dispatch(getCurrentUser()).unwrap();
-      navigate('/dashboard');
+      const loginResult = await dispatch(login({ username, password })).unwrap();
+      const userResult = await dispatch(getCurrentUser()).unwrap();
+      
+      // Role-based navigation
+      const userRole = loginResult.user?.role || userResult.role;
+      if (userRole === 'admin') {
+        navigate('/dashboard');
+      } else if (userRole === 'accounting') {
+        navigate('/accounting-dashboard');
+      } else {
+        navigate('/dashboard'); // Default fallback
+      }
     } catch (error) {
       console.error('Login failed:', error);
     }
@@ -87,14 +96,6 @@ const Login: React.FC = () => {
             </Button>
           </form>
 
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Demo Credentials:
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Username: admin | Password: admin123
-            </Typography>
-          </Box>
         </Paper>
       </Box>
     </Container>
