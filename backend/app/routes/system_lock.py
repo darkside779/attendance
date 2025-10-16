@@ -13,18 +13,20 @@ router = APIRouter()
 class UnlockRequest(BaseModel):
     password: str
 
+from typing import Optional
+
 class LockResponse(BaseModel):
     is_locked: bool
-    locked_at: str = None
+    locked_at: Optional[str] = None
     expires_at: str
     days_remaining: int
-    lock_reason: str = None
+    lock_reason: Optional[str] = None
     unlock_attempts: int = 0
 
 class UnlockResponse(BaseModel):
     success: bool
     message: str
-    expires_at: str = None
+    expires_at: Optional[str] = None
     days_remaining: int = 0
     attempts: int = 0
 
