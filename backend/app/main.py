@@ -46,8 +46,15 @@ async def health_check():
 async def test_cors():
     return {"message": "CORS is working!", "timestamp": "2025-10-11T19:39:00"}
 
+# Add System Lock Middleware
+from app.middleware.system_lock_middleware import SystemLockMiddleware
+app.add_middleware(SystemLockMiddleware)
+
+# Log system lock middleware
+logging.info("🔒 System Lock middleware added successfully")
+
 # Include routers
-from app.routes import auth, employees, attendance, face_recognition, reports, payroll, shifts
+from app.routes import auth, employees, attendance, face_recognition, reports, payroll, shifts, system_lock
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(employees.router, prefix="/api/v1/employees", tags=["employees"])
@@ -56,3 +63,4 @@ app.include_router(attendance.router, prefix="/api/v1/attendance", tags=["attend
 app.include_router(payroll.router, prefix="/api/v1/payroll", tags=["payroll"])
 app.include_router(shifts.router, prefix="/api/v1/shifts", tags=["shifts"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
+app.include_router(system_lock.router, prefix="/api/v1/system-lock", tags=["system-lock"])
