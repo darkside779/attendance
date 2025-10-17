@@ -247,11 +247,17 @@ const EmployeeManagement: React.FC = () => {
                         </IconButton>
                         <IconButton
                           size="small"
-                          onClick={() => handleFaceUpload(employee)}
+                          onClick={() => {
+                            console.log('🎯 MULTI-ANGLE FACE BUTTON CLICKED!', employee);
+                            console.log('🚀 Navigating to:', `/multi-face-capture/${employee.id}`);
+                            // Navigate to multi-angle face capture
+                            navigate(`/multi-face-capture/${employee.id}`);
+                          }}
                           color="primary"
-                          title="Upload Face (Traditional)"
+                          title="Multi-Angle Face Registration"
+                          style={{backgroundColor: 'lightgreen'}}
                         >
-                          <Face />
+                          👤
                         </IconButton>
                         <IconButton
                           size="small"

@@ -11,8 +11,11 @@ class Employee(Base):
     name = Column(String(100), nullable=False)
     phone = Column(String(20), nullable=True)
     email = Column(String(100), nullable=True)
-    face_encoding = Column(Text, nullable=True)  # Store face encoding as JSON string
+    face_encoding = Column(Text, nullable=True)  # Store face encoding as JSON string (legacy)
+    face_encodings_multi = Column(Text, nullable=True)  # Store multiple face encodings as JSON
+    face_landmarks = Column(Text, nullable=True)  # Store facial landmarks as JSON
     face_image_path = Column(String(255), nullable=True)
+    face_images_paths = Column(Text, nullable=True)  # Store multiple face image paths as JSON
     department = Column(String(50), nullable=True)
     position = Column(String(50), nullable=True)
     hire_date = Column(DateTime(timezone=True), nullable=True)

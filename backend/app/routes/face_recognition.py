@@ -292,43 +292,63 @@ async def detect_faces_realtime(
         employee_service = EmployeeService(db)
         # Force refresh to get latest data
         db.expire_all()
-        employees = employee_service.get_employees(active_only=True)
+        
+        # Get all employees with face encodings
+        employees = db.query(Employee).filter(
+            (Employee.face_encoding.isnot(None)) | 
+            (Employee.face_encodings_multi.isnot(None))
+        ).all()
         
         known_features = []
         employee_map = {}
+        
         for employee in employees:
-            print(f"DEBUG: Employee {employee.id} ({employee.name}) - face_encoding exists: {employee.face_encoding is not None}")
-            if employee.face_encoding:
-                print(f"DEBUG: Face encoding length: {len(employee.face_encoding)}")
-                try:
+            try:
+                # Try multi-encoding first (preferred)
+                if employee.face_encodings_multi:
+                    multi_data = json.loads(employee.face_encodings_multi)
+                    if multi_data and multi_data.get('encodings'):
+                        known_features.append((employee.id, multi_data))
+                        employee_map[employee.id] = {
+                            'name': employee.name,
+                            'employee_id': employee.employee_id,
+                            'department': employee.department
+                        }
+                        print(f"DEBUG: Successfully loaded {len(multi_data['encodings'])} multi-encodings for employee {employee.name}")
+                        continue
+                
+                # Fallback to legacy single encoding
+                if employee.face_encoding:
                     features = json.loads(employee.face_encoding)
-                    known_features.append((employee.id, features))
-                    employee_map[employee.id] = {
-                        'name': employee.name,
-                        'employee_id': employee.employee_id,
-                        'department': employee.department
-                    }
-                    print(f"DEBUG: Successfully loaded {len(features)} features for employee {employee.name}")
-                except json.JSONDecodeError as e:
-                    print(f"DEBUG: JSON decode error for employee {employee.id}: {e}")
-                    continue
-            else:
-                print(f"DEBUG: No face encoding for employee {employee.name}")
+                    if features:
+                        known_features.append((employee.id, features))
+                        employee_map[employee.id] = {
+                            'name': employee.name,
+                            'employee_id': employee.employee_id,
+                            'department': employee.department
+                        }
+                        print(f"DEBUG: Successfully loaded {len(features)} legacy features for employee {employee.name}")
+                        
+            except json.JSONDecodeError as e:
+                print(f"DEBUG: JSON decode error for employee {employee.id}: {e}")
+                continue
         
         print(f"DEBUG: Total known features loaded: {len(known_features)}")
         
-        # Try to recognize each detected face and find the best overall match
+        # Process the single detected face (if any)
         recognized_faces = []
-        best_match = None
-        best_confidence = 0.0
         
         print(f"DEBUG: Processing {len(detection_result['recognized'])} detected faces")
         print(f"DEBUG: Known features available: {len(known_features)}")
         
-        for face_data in detection_result['recognized']:
-            if known_features and face_data['features']:
+        # Since we now only detect one face, process it directly
+        if detection_result['recognized'] and known_features:
+            face_data = detection_result['recognized'][0]  # Only one face
+            
+            if face_data['features']:
                 print(f"DEBUG: Trying to match face with {len(face_data['features'])} features")
-                match_result = simple_face_service.find_best_match(
+                # Use multi-encoding aware matching
+                match_result = simple_face_service.find_best_match_multi(
                     face_data['features'], 
                     known_features
                 )
@@ -341,30 +361,51 @@ async def detect_faces_realtime(
                     if employee_info:
                         match_confidence = round((1 - confidence) * 100, 2)
                         
-                        # Keep track of the best match
-                        if match_confidence > best_confidence:
-                            best_confidence = match_confidence
-                            best_match = {
-                                'face_id': face_data['face_id'],
+                        # Return the match if confidence is above threshold (60%)
+                        if match_confidence >= 60.0:
+                            recognized_faces.append({
+                                'face_id': 0,
                                 'employee_name': employee_info['name'],
                                 'employee_id': employee_info['employee_id'],
                                 'department': employee_info['department'],
                                 'confidence': match_confidence
-                            }
-        
-        # Only return the best match if confidence is above threshold (60%)
-        if best_match and best_confidence >= 60.0:
-            recognized_faces.append(best_match)
-        else:
-            # If no good match found, return unknown for the first face only
-            if detection_result['recognized']:
-                recognized_faces.append({
-                    'face_id': 0,
-                    'employee_name': 'Unknown',
-                    'employee_id': None,
-                    'department': None,
-                    'confidence': 0.0
-                })
+                            })
+                        else:
+                            # Low confidence match
+                            recognized_faces.append({
+                                'face_id': 0,
+                                'employee_name': 'Unknown',
+                                'employee_id': None,
+                                'department': None,
+                                'confidence': 0.0
+                            })
+                    else:
+                        # Employee not found in database
+                        recognized_faces.append({
+                            'face_id': 0,
+                            'employee_name': 'Unknown',
+                            'employee_id': None,
+                            'department': None,
+                            'confidence': 0.0
+                        })
+                else:
+                    # No match found
+                    recognized_faces.append({
+                        'face_id': 0,
+                        'employee_name': 'Unknown',
+                        'employee_id': None,
+                        'department': None,
+                        'confidence': 0.0
+                    })
+        elif detection_result['recognized']:
+            # Face detected but no known features to compare against
+            recognized_faces.append({
+                'face_id': 0,
+                'employee_name': 'Unknown',
+                'employee_id': None,
+                'department': None,
+                'confidence': 0.0
+            })
         
         return {
             "faces_detected": len(detection_result['faces']),

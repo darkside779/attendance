@@ -54,7 +54,7 @@ app.add_middleware(SystemLockMiddleware)
 logging.info("🔒 System Lock middleware added successfully")
 
 # Include routers
-from app.routes import auth, employees, attendance, face_recognition, reports, payroll, shifts, system_lock
+from app.routes import auth, employees, attendance, face_recognition, payroll, shifts, multi_face_registration, system_lock, reports
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(employees.router, prefix="/api/v1/employees", tags=["employees"])
@@ -62,5 +62,6 @@ app.include_router(face_recognition.router, prefix="/api/v1/face", tags=["face-r
 app.include_router(attendance.router, prefix="/api/v1/attendance", tags=["attendance"])
 app.include_router(payroll.router, prefix="/api/v1/payroll", tags=["payroll"])
 app.include_router(shifts.router, prefix="/api/v1/shifts", tags=["shifts"])
+app.include_router(multi_face_registration.router, prefix="/api/v1/multi-face", tags=["multi-face-registration"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(system_lock.router, prefix="/api/v1/system-lock", tags=["system-lock"])

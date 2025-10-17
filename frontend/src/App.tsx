@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { store } from './store';
 import { Dashboard, EmployeeManagement, AttendanceTracker, AttendanceTrackerRealTime, RealTimeFaceRegistration, Reports, AttendanceEdit, PayrollManagement, ShiftManagement } from './components';
+import MultiAngleFaceCaptureWrapper from './components/MultiAngleFaceCaptureWrapper';
 import AccountingDashboard from './components/AccountingDashboard';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -92,6 +93,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <RealTimeFaceRegistration />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/multi-face-capture/:employeeId"
+              element={
+                <ProtectedRoute>
+                  <MultiAngleFaceCaptureWrapper />
                 </ProtectedRoute>
               }
             />

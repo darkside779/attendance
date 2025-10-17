@@ -28,6 +28,8 @@ import {
   Add,
   ArrowBack,
   Search,
+  Face,
+  CameraAlt,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +41,7 @@ import {
   clearError,
 } from '../store/employeeSlice';
 import { RootState, AppDispatch } from '../store';
+// import MultiAngleFaceCapture from './MultiAngleFaceCapture';
 
 interface EmployeeFormData {
   employee_id: string;
@@ -54,6 +57,7 @@ const EmployeeManagement: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [faceCapture, setFaceCapture] = useState<{open: boolean, employee: any}>({open: false, employee: null});
   const [formData, setFormData] = useState<EmployeeFormData>({
     employee_id: '',
     name: '',
@@ -70,6 +74,7 @@ const EmployeeManagement: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
+    console.log('🔥 EMPLOYEE MANAGEMENT LOADED - FACE BUTTON SHOULD BE VISIBLE!');
     dispatch(fetchEmployees({}));
   }, [dispatch]);
 
@@ -224,6 +229,18 @@ const EmployeeManagement: React.FC = () => {
                         >
                           <Edit />
                         </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            console.log('🎯 FACE BUTTON CLICKED!', employee);
+                            setFaceCapture({open: true, employee});
+                          }}
+                          color="primary"
+                          title="Register Multi-Angle Face"
+                          style={{backgroundColor: 'red'}}
+                        >
+                          <Face />
+                        </IconButton>
                         {user?.role === 'admin' && (
                           <IconButton
                             size="small"
@@ -311,6 +328,14 @@ const EmployeeManagement: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Multi-Angle Face Capture Dialog */}
+      {faceCapture.open && faceCapture.employee && (
+        <div>
+          <h3>Face Capture for {faceCapture.employee.name}</h3>
+          <button onClick={() => setFaceCapture({open: false, employee: null})}>Close</button>
+        </div>
+      )}
     </Box>
   );
 };

@@ -7,7 +7,7 @@ import numpy as np
 import base64
 import json
 import os
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from PIL import Image
 import io
 
@@ -137,6 +137,55 @@ class SimpleFaceService:
             print(f"Error comparing faces: {e}")
             return False, 1.0
     
+    def find_best_match_multi(self, unknown_features: List[float], known_faces: List[Tuple[int, Dict]]) -> Optional[Tuple[int, float]]:
+        """
+        Find the best matching face from known faces with multiple encodings support
+        """
+        try:
+            if not known_faces:
+                print("DEBUG: No known faces to compare against")
+                return None
+            
+            print(f"DEBUG: Comparing unknown face against {len(known_faces)} known faces (multi-encoding)")
+            
+            best_match_id = None
+            best_distance = float('inf')
+            
+            for employee_id, face_data in known_faces:
+                # Handle both old single encoding and new multi-encoding format
+                if isinstance(face_data, dict) and 'encodings' in face_data:
+                    # New multi-encoding format
+                    encodings = face_data['encodings']
+                    if encodings:
+                        # Test against all encodings, keep the best match
+                        for encoding in encodings:
+                            if encoding:
+                                is_match, distance = self.compare_faces(encoding, unknown_features)
+                                print(f"DEBUG: Employee {employee_id} (multi): distance={distance:.4f}, match={is_match}")
+                                
+                                if is_match and distance < best_distance:
+                                    best_distance = distance
+                                    best_match_id = employee_id
+                elif isinstance(face_data, list):
+                    # Legacy single encoding format
+                    is_match, distance = self.compare_faces(face_data, unknown_features)
+                    print(f"DEBUG: Employee {employee_id} (legacy): distance={distance:.4f}, match={is_match}")
+                    
+                    if is_match and distance < best_distance:
+                        best_distance = distance
+                        best_match_id = employee_id
+            
+            if best_match_id is not None:
+                print(f"DEBUG: Best match found - Employee {best_match_id} with distance {best_distance:.4f}")
+                return best_match_id, best_distance
+            else:
+                print("DEBUG: No match found within tolerance")
+                return None
+            
+        except Exception as e:
+            print(f"Error in multi-encoding face matching: {e}")
+            return None
+
     def find_best_match(self, unknown_features: List[float], known_faces: List[Tuple[int, List[float]]]) -> Optional[Tuple[int, float]]:
         """
         Find the best matching face from known faces
@@ -264,10 +313,15 @@ class SimpleFaceService:
             face_list = []
             recognized_list = []
             
-            for i, (x, y, w, h) in enumerate(faces):
+            # Only process the largest face (most prominent one)
+            if len(faces) > 0:
+                # Find the largest face by area
+                largest_face = max(faces, key=lambda face: face[2] * face[3])
+                x, y, w, h = largest_face
+                
                 # Convert to relative coordinates (0-1 range)
                 face_info = {
-                    'id': i,
+                    'id': 0,  # Always ID 0 since we only return one face
                     'x': x / width,
                     'y': y / height,
                     'width': w / width,
@@ -289,12 +343,14 @@ class SimpleFaceService:
                 
                 # Try to recognize this face
                 recognized_list.append({
-                    'face_id': i,
+                    'face_id': 0,  # Always ID 0 since we only return one face
                     'employee_name': None,
                     'employee_id': None,
                     'confidence': 0.0,
                     'features': features.tolist()
                 })
+                
+                print(f"DEBUG: Detected {len(faces)} faces, processing only the largest one (size: {w}x{h})")
             
             return {
                 'faces': face_list,
