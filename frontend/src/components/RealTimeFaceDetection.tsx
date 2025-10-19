@@ -167,9 +167,20 @@ const RealTimeFaceDetection: React.FC<RealTimeFaceDetectionProps> = ({
         if (onFaceDetected) {
         }
         
+        // Check for spoofing detection
+        const spoofingDetected = response.recognized.find(
+          (face: any) => face.employee_name === 'SPOOFING DETECTED'
+        );
+        
+        if (spoofingDetected) {
+          setError('⚠️ Photo/Screen Detected - Please use live camera only!');
+          setRecognizedFaces([]);
+          return;
+        }
+        
         // If an employee is recognized, notify parent
         const recognizedEmployee = response.recognized.find(
-          (face: RecognizedFace) => face.employee_name !== 'Unknown'
+          (face: RecognizedFace) => face.employee_name !== 'Unknown' && face.employee_name !== 'SPOOFING DETECTED'
         );
         
         // Notify parent component about detected employee

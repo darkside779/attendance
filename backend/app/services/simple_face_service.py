@@ -15,7 +15,102 @@ class SimpleFaceService:
     def __init__(self):
         # Load OpenCV face cascade
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        self.tolerance = 0.6  # Similarity threshold
+        self.tolerance = 0.4  # Much stricter similarity threshold 
+        self.min_confidence = 0.85  # Very high confidence required (85%)
+        
+    def detect_screen_or_photo(self, image_data: bytes) -> Dict:
+        """
+        Detect if the image is from a phone screen, photo, or live person
+        Returns analysis of image characteristics
+        """
+        try:
+            nparr = np.frombuffer(image_data, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if image is None:
+                return {"is_live": False, "reason": "Invalid image", "confidence": 0.0}
+            
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            
+            # 1. Check for screen pixels/moiré patterns
+            # Calculate local standard deviation to detect screen patterns
+            kernel = np.ones((5,5), np.float32) / 25
+            mean = cv2.filter2D(gray.astype(np.float32), -1, kernel)
+            sqr_mean = cv2.filter2D((gray.astype(np.float32))**2, -1, kernel)
+            std_dev = np.sqrt(sqr_mean - mean**2)
+            
+            # Screen images often have regular patterns
+            screen_pattern_score = float(np.std(std_dev))
+            # Handle NaN values
+            if np.isnan(screen_pattern_score) or np.isinf(screen_pattern_score):
+                screen_pattern_score = 0.0
+            
+            # 2. Check for rectangular screen edges
+            edges = cv2.Canny(gray, 50, 150)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            rectangular_objects = 0
+            for contour in contours:
+                if cv2.contourArea(contour) > 1000:  # Significant size
+                    approx = cv2.approxPolyDP(contour, 0.02 * cv2.arcLength(contour, True), True)
+                    if len(approx) == 4:  # Rectangle
+                        rectangular_objects += 1
+            
+            # 3. Check color distribution (screens often have limited color range)
+            hist_b = cv2.calcHist([image], [0], None, [256], [0, 256])
+            hist_g = cv2.calcHist([image], [1], None, [256], [0, 256])
+            hist_r = cv2.calcHist([image], [2], None, [256], [0, 256])
+            
+            # Calculate color distribution uniformity
+            color_uniformity = float((np.std(hist_b) + np.std(hist_g) + np.std(hist_r)) / 3)
+            if np.isnan(color_uniformity) or np.isinf(color_uniformity):
+                color_uniformity = 0.0
+            
+            # 4. Check for digital artifacts (JPEG compression patterns)
+            laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+            if np.isnan(laplacian_var) or np.isinf(laplacian_var):
+                laplacian_var = 0.0
+            
+            # Scoring system
+            screen_indicators = 0
+            reasons = []
+            
+            if screen_pattern_score > 15:  # High pattern regularity
+                screen_indicators += 1
+                reasons.append("Regular screen patterns detected")
+                
+            if rectangular_objects >= 2:  # Multiple rectangular objects (screen bezels)
+                screen_indicators += 1
+                reasons.append("Screen-like rectangular objects found")
+                
+            if color_uniformity < 1000:  # Limited color range
+                screen_indicators += 1
+                reasons.append("Limited color distribution (screen-like)")
+                
+            if laplacian_var < 100:  # Low detail variance (compressed/scaled image)
+                screen_indicators += 1
+                reasons.append("Low image detail (possibly scaled/compressed)")
+            
+            # Determine if it's likely a screen/photo
+            is_live = screen_indicators < 2
+            confidence = max(0.0, min(1.0, 1 - (screen_indicators / 4)))
+            
+            return {
+                "is_live": is_live,
+                "confidence": float(confidence),
+                "screen_indicators": int(screen_indicators),
+                "reasons": reasons,
+                "analysis": {
+                    "pattern_score": screen_pattern_score,
+                    "rectangular_objects": int(rectangular_objects),
+                    "color_uniformity": color_uniformity,
+                    "detail_variance": laplacian_var
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error in screen/photo detection: {e}")
+            return {"is_live": False, "reason": f"Detection error: {e}", "confidence": 0.0}
     
     def extract_face_features_for_checkin(self, image_data: bytes) -> Optional[List[float]]:
         """
@@ -139,7 +234,7 @@ class SimpleFaceService:
     
     def find_best_match_multi(self, unknown_features: List[float], known_faces: List[Tuple[int, Dict]]) -> Optional[Tuple[int, float]]:
         """
-        Find the best matching face from known faces with multiple encodings support
+        Enhanced multi-angle face matching with stricter unknown detection
         """
         try:
             if not known_faces:
@@ -150,22 +245,46 @@ class SimpleFaceService:
             
             best_match_id = None
             best_distance = float('inf')
+            best_confidence = 0.0
+            match_scores = []  # Track all match scores for better analysis
             
             for employee_id, face_data in known_faces:
+                employee_best_distance = float('inf')
+                employee_match_count = 0
+                
                 # Handle both old single encoding and new multi-encoding format
                 if isinstance(face_data, dict) and 'encodings' in face_data:
-                    # New multi-encoding format
+                    # New multi-encoding format - test against ALL angles
                     encodings = face_data['encodings']
                     if encodings:
-                        # Test against all encodings, keep the best match
-                        for encoding in encodings:
+                        print(f"DEBUG: Testing employee {employee_id} with {len(encodings)} multi-angle encodings")
+                        
+                        for i, encoding in enumerate(encodings):
                             if encoding:
                                 is_match, distance = self.compare_faces(encoding, unknown_features)
-                                print(f"DEBUG: Employee {employee_id} (multi): distance={distance:.4f}, match={is_match}")
+                                print(f"DEBUG: Employee {employee_id} angle {i}: distance={distance:.4f}, match={is_match}")
                                 
-                                if is_match and distance < best_distance:
-                                    best_distance = distance
-                                    best_match_id = employee_id
+                                if is_match:
+                                    employee_match_count += 1
+                                    if distance < employee_best_distance:
+                                        employee_best_distance = distance
+                        
+                        # Multi-angle bonus: if multiple angles match, increase confidence
+                        if employee_match_count > 0:
+                            # Calculate confidence based on best distance and number of matching angles
+                            angle_bonus = min(employee_match_count * 0.1, 0.3)  # Up to 30% bonus
+                            adjusted_distance = employee_best_distance * (1 - angle_bonus)
+                            
+                            print(f"DEBUG: Employee {employee_id} multi-angle result: {employee_match_count}/{len(encodings)} angles matched, best_distance={employee_best_distance:.4f}, adjusted={adjusted_distance:.4f}")
+                            
+                            if adjusted_distance < best_distance:
+                                best_distance = adjusted_distance
+                                best_match_id = employee_id
+                                # Convert distance to confidence (0-1 scale)
+                                best_confidence = max(0, 1 - adjusted_distance)
+                        
+                        match_scores.append((employee_id, employee_best_distance, employee_match_count, len(encodings)))
+                        
                 elif isinstance(face_data, list):
                     # Legacy single encoding format
                     is_match, distance = self.compare_faces(face_data, unknown_features)
@@ -174,12 +293,26 @@ class SimpleFaceService:
                     if is_match and distance < best_distance:
                         best_distance = distance
                         best_match_id = employee_id
+                        best_confidence = max(0, 1 - distance)
+                        
+                    match_scores.append((employee_id, distance, 1 if is_match else 0, 1))
             
-            if best_match_id is not None:
-                print(f"DEBUG: Best match found - Employee {best_match_id} with distance {best_distance:.4f}")
+            # Enhanced unknown detection: require minimum confidence
+            if best_match_id is not None and best_confidence >= self.min_confidence:
+                print(f"DEBUG: ✅ VALID MATCH - Employee {best_match_id} with confidence {best_confidence:.2f} (distance {best_distance:.4f})")
                 return best_match_id, best_distance
             else:
-                print("DEBUG: No match found within tolerance")
+                if best_match_id is not None:
+                    print(f"DEBUG: ❌ LOW CONFIDENCE - Employee {best_match_id} confidence {best_confidence:.2f} < {self.min_confidence} (UNKNOWN)")
+                else:
+                    print("DEBUG: ❌ NO MATCH - Face is UNKNOWN")
+                
+                # Log all match scores for debugging
+                print("DEBUG: All match scores:")
+                for emp_id, dist, matches, total in match_scores:
+                    conf = max(0, 1 - dist)
+                    print(f"  Employee {emp_id}: confidence={conf:.2f}, matches={matches}/{total}")
+                
                 return None
             
         except Exception as e:

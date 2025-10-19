@@ -278,6 +278,26 @@ async def detect_faces_realtime(
         # Read image
         image_data = await file.read()
         
+        # First, check if image is from a screen/photo (anti-spoofing)
+        liveness_check = simple_face_service.detect_screen_or_photo(image_data)
+        print(f"DEBUG: Liveness check result: {liveness_check}")
+        
+        if not liveness_check.get("is_live", False):
+            print(f"DEBUG: ❌ SPOOFING DETECTED - {liveness_check.get('reasons', ['Unknown reason'])}")
+            return {
+                "faces_detected": 0,
+                "faces": [],
+                "recognized": [{
+                    'face_id': 0,
+                    'employee_name': 'SPOOFING DETECTED',
+                    'employee_id': None,
+                    'department': None,
+                    'confidence': 0.0,
+                    'warning': 'Photo/Screen detected - Use live camera only'
+                }],
+                "liveness_check": liveness_check
+            }
+        
         # Detect faces and get coordinates
         detection_result = simple_face_service.detect_and_recognize_faces(image_data)
         
@@ -355,32 +375,25 @@ async def detect_faces_realtime(
                 print(f"DEBUG: Match result: {match_result}")
                 
                 if match_result:
-                    employee_id, confidence = match_result
+                    employee_id, distance = match_result
                     employee_info = employee_map.get(employee_id)
                     
-                    if employee_info:
-                        match_confidence = round((1 - confidence) * 100, 2)
-                        
-                        # Return the match if confidence is above threshold (60%)
-                        if match_confidence >= 60.0:
-                            recognized_faces.append({
-                                'face_id': 0,
-                                'employee_name': employee_info['name'],
-                                'employee_id': employee_info['employee_id'],
-                                'department': employee_info['department'],
-                                'confidence': match_confidence
-                            })
-                        else:
-                            # Low confidence match
-                            recognized_faces.append({
-                                'face_id': 0,
-                                'employee_name': 'Unknown',
-                                'employee_id': None,
-                                'department': None,
-                                'confidence': 0.0
-                            })
+                    # Convert distance to confidence percentage (0-100%)
+                    confidence_score = max(0, min(100, (1 - distance) * 100))
+                    
+                    if employee_info and confidence_score >= 85:  # Minimum 85% confidence (very strict)
+                        print(f"DEBUG: ✅ RECOGNIZED - {employee_info['name']} with {confidence_score:.1f}% confidence")
+                        recognized_faces.append({
+                            'face_id': 0,
+                            'employee_name': employee_info['name'],
+                            'employee_id': employee_info['employee_id'],
+                            'department': employee_info['department'],
+                            'confidence': round(confidence_score, 1)
+                        })
                     else:
-                        # Employee not found in database
+                        # Low confidence or no employee info - mark as unknown
+                        conf_msg = f"{confidence_score:.1f}%" if match_result else "0%"
+                        print(f"DEBUG: ❌ UNKNOWN - Low confidence ({conf_msg}) or no employee info")
                         recognized_faces.append({
                             'face_id': 0,
                             'employee_name': 'Unknown',
@@ -389,7 +402,8 @@ async def detect_faces_realtime(
                             'confidence': 0.0
                         })
                 else:
-                    # No match found
+                    # No match found at all
+                    print(f"DEBUG: ❌ NO MATCH - Face is completely unknown")
                     recognized_faces.append({
                         'face_id': 0,
                         'employee_name': 'Unknown',
@@ -411,7 +425,8 @@ async def detect_faces_realtime(
             "faces_detected": len(detection_result['faces']),
             "faces": detection_result['faces'],
             "recognized": recognized_faces,
-            "image_dimensions": detection_result['image_dimensions']
+            "image_dimensions": detection_result['image_dimensions'],
+            "liveness_check": liveness_check
         }
         
     except Exception as e:
