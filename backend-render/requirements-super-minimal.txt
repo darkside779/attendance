@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-sqlalchemy
-python-multipart
-python-jose
-passlib
-psycopg2-binary

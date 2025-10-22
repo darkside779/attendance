@@ -21,7 +21,10 @@ import {
   PictureAsPdf,
   TableChart,
   Assessment,
-  DateRange
+  DateRange,
+  AttachMoney,
+  Schedule,
+  TrendingUp
 } from '@mui/icons-material';
 import { employeeAPI } from '../services/attendanceAPI';
 
@@ -41,13 +44,41 @@ interface EmployeeSummary {
   attendance_rate: number;
 }
 
+interface HourlyRateData {
+  employees: Array<{
+    employee_id: string;
+    employee_name: string;
+    department: string;
+    monthly_salary: number;
+    total_hours: number;
+    hourly_rate: number;
+    per_minute_rate: number;
+    earned_salary: number;
+    salary_difference: number;
+    cost_efficiency: number;
+  }>;
+  summary: {
+    total_employees: number;
+    total_salary_cost: number;
+    total_earned_salary: number;
+    total_salary_difference: number;
+    total_hours_worked: number;
+    average_hourly_rate: number;
+    average_per_minute_rate: number;
+    period_start: string;
+    period_end: string;
+  };
+}
+
 const Reports: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<number | ''>('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [employeeSummary, setEmployeeSummary] = useState<EmployeeSummary | null>(null);
+  const [hourlyRateData, setHourlyRateData] = useState<HourlyRateData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingRates, setLoadingRates] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   useEffect(() => {
@@ -219,6 +250,106 @@ const Reports: React.FC = () => {
     }
   };
 
+  const loadHourlyRates = async () => {
+    setLoadingRates(true);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate.toISOString().split('T')[0]);
+      if (endDate) params.append('end_date', endDate.toISOString().split('T')[0]);
+      if (selectedEmployee) params.append('employee_id', selectedEmployee.toString());
+
+      const response = await fetch(`${getApiBaseUrl()}/reports/hourly-rates?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHourlyRateData(data.hourly_rates);
+        setMessage({ type: 'success', text: 'Hourly rate analysis loaded successfully!' });
+      } else {
+        throw new Error('Failed to load hourly rates');
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error loading hourly rate analysis' });
+    } finally {
+      setLoadingRates(false);
+    }
+  };
+
+  const handleDownloadPDFWithRates = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate.toISOString().split('T')[0]);
+      if (endDate) params.append('end_date', endDate.toISOString().split('T')[0]);
+      if (selectedEmployee) params.append('employee_id', selectedEmployee.toString());
+
+      const response = await fetch(`${getApiBaseUrl()}/reports/pdf-with-rates?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_report_with_rates_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        setMessage({ type: 'success', text: 'PDF report with hourly rates downloaded successfully!' });
+      } else {
+        throw new Error('Failed to download PDF with rates');
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error downloading PDF report with rates' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadExcelWithRates = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate.toISOString().split('T')[0]);
+      if (endDate) params.append('end_date', endDate.toISOString().split('T')[0]);
+      if (selectedEmployee) params.append('employee_id', selectedEmployee.toString());
+
+      const response = await fetch(`${getApiBaseUrl()}/reports/excel-with-rates?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_report_with_rates_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        setMessage({ type: 'success', text: 'Excel report with hourly rates downloaded successfully!' });
+      } else {
+        throw new Error('Failed to download Excel with rates');
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error downloading Excel report with rates' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
@@ -342,6 +473,54 @@ const Reports: React.FC = () => {
           </Card>
         </Box>
 
+        {/* Hourly Rate Analysis */}
+        <Box sx={{ flex: 1, minWidth: 300 }}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                <AttachMoney sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Hourly Rate Analysis
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<TrendingUp />}
+                  onClick={loadHourlyRates}
+                  disabled={loadingRates}
+                  fullWidth
+                >
+                  {loadingRates ? <CircularProgress size={20} /> : 'Load Hourly Rates'}
+                </Button>
+                
+                <Divider />
+                
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<PictureAsPdf />}
+                  onClick={handleDownloadPDFWithRates}
+                  disabled={loading}
+                  fullWidth
+                >
+                  {loading ? <CircularProgress size={20} /> : 'PDF with Rates'}
+                </Button>
+                
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<TableChart />}
+                  onClick={handleDownloadExcelWithRates}
+                  disabled={loading}
+                  fullWidth
+                >
+                  {loading ? <CircularProgress size={20} /> : 'Excel with Rates'}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+
         {/* Employee Summary */}
         <Box sx={{ flex: 1, minWidth: 300 }}>
           <Card>
@@ -408,6 +587,134 @@ const Reports: React.FC = () => {
           </Card>
         </Box>
       </Box>
+
+      {/* Hourly Rate Data Display */}
+      {hourlyRateData && (
+        <Box sx={{ mt: 3 }}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                <Schedule sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Hourly Rate Summary
+              </Typography>
+              
+              {/* Summary Statistics */}
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+                <Chip 
+                  label={`Total Employees: ${hourlyRateData.summary.total_employees}`} 
+                  color="primary" 
+                  variant="outlined" 
+                />
+                <Chip 
+                  label={`Total Earned: ${hourlyRateData.summary.total_salary_cost} AED`} 
+                  color="success" 
+                  variant="outlined" 
+                />
+                <Chip 
+                  label={`Difference: ${hourlyRateData.summary.total_salary_difference >= 0 ? '+' : ''}${hourlyRateData.summary.total_salary_difference} AED`} 
+                  color={hourlyRateData.summary.total_salary_difference >= 0 ? 'success' : 'error'} 
+                  variant="outlined" 
+                />
+                <Chip 
+                  label={`Avg Hourly Rate: ${hourlyRateData.summary.average_hourly_rate} AED/hour`} 
+                  color="info" 
+                  variant="outlined" 
+                />
+                <Chip 
+                  label={`Avg Per Minute: ${hourlyRateData.summary.average_per_minute_rate} AED/min`} 
+                  color="info" 
+                  variant="outlined" 
+                />
+              </Box>
+
+              {/* Calculation Example */}
+              {hourlyRateData.employees.length > 0 && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    <strong>Calculation Example ({hourlyRateData.employees[0].employee_name}):</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    1. Find the hourly rate:
+                  </Typography>
+                  <Typography variant="body2" sx={{ ml: 2, mb: 1 }}>
+                    {hourlyRateData.employees[0].monthly_salary} AED ÷ {hourlyRateData.employees[0].total_hours} hours = {hourlyRateData.employees[0].hourly_rate} AED/hour
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    2. Calculate earned salary based on actual hours:
+                  </Typography>
+                  <Typography variant="body2" sx={{ ml: 2, mb: 1 }}>
+                    {hourlyRateData.employees[0].hourly_rate} AED/hour × {hourlyRateData.employees[0].total_hours} hours = {hourlyRateData.employees[0].earned_salary} AED
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    3. Convert to per minute rate:
+                  </Typography>
+                  <Typography variant="body2" sx={{ ml: 2, mb: 1 }}>
+                    {hourlyRateData.employees[0].hourly_rate} ÷ 60 = {hourlyRateData.employees[0].per_minute_rate} AED/minute
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'success.main', mb: 1 }}>
+                    ✅ Earned Salary = {hourlyRateData.employees[0].earned_salary} AED
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: hourlyRateData.employees[0].salary_difference >= 0 ? 'success.main' : 'error.main' }}>
+                    💰 Difference = {hourlyRateData.employees[0].salary_difference >= 0 ? '+' : ''}{hourlyRateData.employees[0].salary_difference} AED
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Employee Table */}
+              <Box sx={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f5f5f5' }}>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'left' }}>Employee</th>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'left' }}>Department</th>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>Monthly Salary (AED)</th>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>Total Hours</th>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>Hourly Rate (AED)</th>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>Earned Salary (AED)</th>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>Difference (AED)</th>
+                      <th style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>Per Minute (AED)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hourlyRateData.employees.map((emp, index) => (
+                      <tr key={index}>
+                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                          {emp.employee_name} ({emp.employee_id})
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>{emp.department}</td>
+                        <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                          {emp.monthly_salary.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                          {emp.total_hours.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                          {emp.hourly_rate.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold', color: '#2e7d32' }}>
+                          {emp.earned_salary.toFixed(2)}
+                        </td>
+                        <td style={{ 
+                          padding: '8px', 
+                          border: '1px solid #ddd', 
+                          textAlign: 'right', 
+                          fontWeight: 'bold',
+                          color: emp.salary_difference >= 0 ? '#2e7d32' : '#d32f2f'
+                        }}>
+                          {emp.salary_difference >= 0 ? '+' : ''}{emp.salary_difference.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'right' }}>
+                          {emp.per_minute_rate.toFixed(3)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+      )}
     </Box>
   );
 };

@@ -195,3 +195,82 @@ async def get_all_modifications(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving modifications: {str(e)}"
         )
+
+@router.get("/hourly-rates")
+async def get_hourly_rates(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    employee_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get hourly rate analysis for employees"""
+    try:
+        report_service = ReportService(db)
+        hourly_data = report_service.get_hourly_rate_analysis(start_date, end_date, employee_id)
+        return {"hourly_rates": hourly_data}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating hourly rate analysis: {str(e)}"
+        )
+
+@router.get("/pdf-with-rates")
+async def generate_pdf_report_with_rates(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    employee_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate PDF attendance report with hourly rate analysis"""
+    try:
+        report_service = ReportService(db)
+        pdf_buffer = report_service.generate_pdf_report_with_rates(start_date, end_date, employee_id)
+        
+        # Generate filename
+        filename = "attendance_report_with_rates"
+        if start_date and end_date:
+            filename += f"_{start_date}_{end_date}"
+        filename += ".pdf"
+        
+        return StreamingResponse(
+            io.BytesIO(pdf_buffer.read()),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating PDF report with rates: {str(e)}"
+        )
+
+@router.get("/excel-with-rates")
+async def generate_excel_report_with_rates(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    employee_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate Excel attendance report with hourly rate analysis"""
+    try:
+        report_service = ReportService(db)
+        excel_buffer = report_service.generate_excel_report_with_rates(start_date, end_date, employee_id)
+        
+        # Generate filename
+        filename = "attendance_report_with_rates"
+        if start_date and end_date:
+            filename += f"_{start_date}_{end_date}"
+        filename += ".xlsx"
+        
+        return StreamingResponse(
+            io.BytesIO(excel_buffer.read()),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating Excel report with rates: {str(e)}"
+        )

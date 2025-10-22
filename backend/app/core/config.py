@@ -21,6 +21,7 @@ class Settings:
         "http://127.0.0.1:8080",
         # Add your PC's IP address for network access
         "http://192.168.1.196:3000",
+        "http://0.0.0.0:3000",
     ]
     
     # For development, allow all origins (less secure but more flexible)
