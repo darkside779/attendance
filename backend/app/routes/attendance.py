@@ -390,7 +390,7 @@ async def delete_attendance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete an attendance record"""
+    """Delete an attendance record and its modification history"""
     try:
         # Get the attendance record
         attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
@@ -401,7 +401,13 @@ async def delete_attendance(
                 detail=f"Attendance record with ID {attendance_id} not found"
             )
         
-        # Delete the attendance record
+        # First, delete any related modification history records
+        from app.models.attendance_modification import AttendanceModification
+        db.query(AttendanceModification).filter(
+            AttendanceModification.attendance_id == attendance_id
+        ).delete()
+        
+        # Then delete the attendance record
         db.delete(attendance)
         db.commit()
         
