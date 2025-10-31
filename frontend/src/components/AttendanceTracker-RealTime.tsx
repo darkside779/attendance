@@ -52,6 +52,98 @@ const AttendanceTrackerRealTime: React.FC = () => {
   const [todayAttendance, setTodayAttendance] = useState<AttendanceRecord[]>([]);
   const [autoCheckIn, setAutoCheckIn] = useState(false);
 
+  // ============ VOICE ANNOUNCEMENT FUNCTIONS ============
+  
+  /**
+   * Detect if the name contains Arabic characters
+   * Arabic Unicode Range: \u0600-\u06FF
+   */
+  const detectLanguage = (name: string): 'ar' | 'en' => {
+    const arabicPattern = /[\u0600-\u06FF]/;
+    return arabicPattern.test(name) ? 'ar' : 'en';
+  };
+
+  /**
+   * Play success sound
+   */
+  const playSuccessSound = () => {
+    try {
+      const audio = new Audio('/sounds/success.wav');
+      audio.volume = 0.5; // Set volume to 50%
+      audio.play().catch(err => {
+        console.warn('Could not play success sound:', err);
+      });
+    } catch (error) {
+      console.warn('Success sound not available:', error);
+    }
+  };
+
+  /**
+   * Announce employee name using Web Speech API
+   */
+  const announceEmployee = (employeeName: string, attendanceMode: 'check-in' | 'check-out') => {
+    try {
+      // Check if browser supports Speech Synthesis
+      if (!('speechSynthesis' in window)) {
+        console.warn('Text-to-Speech not supported in this browser');
+        return;
+      }
+
+      // Detect language
+      const language = detectLanguage(employeeName);
+      
+      // Prepare greeting message based on mode
+      let greeting: string;
+      if (attendanceMode === 'check-in') {
+        // Welcome message for check-in
+        greeting = language === 'ar' 
+          ? `مرحبا ${employeeName}` 
+          : `Welcome ${employeeName}`;
+      } else {
+        // Goodbye message for check-out
+        greeting = language === 'ar' 
+          ? `وداعا ${employeeName}` 
+          : `Goodbye ${employeeName}`;
+      }
+
+      // Create speech utterance
+      const utterance = new SpeechSynthesisUtterance(greeting);
+      
+      // Set language
+      utterance.lang = language === 'ar' ? 'ar-SA' : 'en-US';
+      
+      // Set voice properties
+      utterance.rate = 0.9; // Slightly slower for clarity
+      utterance.pitch = 1.0; // Normal pitch
+      utterance.volume = 0.8; // 80% volume
+
+      // Get available voices
+      const voices = window.speechSynthesis.getVoices();
+      
+      // Try to find appropriate voice for the language
+      const preferredVoice = voices.find(voice => 
+        voice.lang.startsWith(language === 'ar' ? 'ar' : 'en')
+      );
+      
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      
+      // Speak the greeting
+      window.speechSynthesis.speak(utterance);
+      
+      console.log(`🔊 Announcing: ${greeting} (Mode: ${attendanceMode}, Language: ${language})`);
+      
+    } catch (error) {
+      console.warn('Voice announcement failed:', error);
+    }
+  };
+
+  // ============ END VOICE ANNOUNCEMENT FUNCTIONS ============
+
   // Load today's attendance records
   const loadTodayAttendance = async () => {
     try {
@@ -120,12 +212,25 @@ const AttendanceTrackerRealTime: React.FC = () => {
           type: 'success',
           text: `✅ ${employee.employee_name} checked in successfully!`
         });
+        
+        // Play success sound and announce employee name
+        playSuccessSound();
+        setTimeout(() => {
+          announceEmployee(employee.employee_name, 'check-in');
+        }, 500); // Small delay after sound
+        
       } else {
         result = await attendanceAPI.checkOut(formData);
         setMessage({
           type: 'success',
           text: `✅ ${employee.employee_name} checked out successfully!`
         });
+        
+        // Play success sound and announce employee name
+        playSuccessSound();
+        setTimeout(() => {
+          announceEmployee(employee.employee_name, 'check-out');
+        }, 500); // Small delay after sound
       }
 
       // Reload attendance records
@@ -139,10 +244,14 @@ const AttendanceTrackerRealTime: React.FC = () => {
 
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || `Failed to ${mode.replace('-', ' ')}`;
+      const displayMessage = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
+      
       setMessage({
         type: 'error',
-        text: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage)
+        text: displayMessage
       });
+      
+      console.error(`Check-in/out error for ${employee.employee_name}:`, displayMessage);
     } finally {
       setIsProcessing(false);
     }
