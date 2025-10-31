@@ -95,40 +95,19 @@ const AttendanceEdit: React.FC = () => {
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
       const response = await attendanceAPI.getTodayAttendance(dateStr);
-      
-      // Handle different response structures
-      if (Array.isArray(response)) {
-        setAttendanceRecords(response);
-      } else if (response && Array.isArray(response.records)) {
-        setAttendanceRecords(response.records);
-      } else {
-        console.warn('Unexpected response structure:', response);
-        setAttendanceRecords([]);
-      }
+      setAttendanceRecords(response);
     } catch (error) {
       console.error('Error loading attendance records:', error);
       setMessage({ type: 'error', text: 'Error loading attendance records' });
-      setAttendanceRecords([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleEditClick = (record: AttendanceRecord) => {
-    // Convert time format for datetime-local inputs
-    const formatTimeForInput = (timeStr: string | null) => {
-      if (!timeStr) return '';
-      // If it's just time (HH:MM:SS), combine with the record's date
-      if (timeStr.includes(':') && !timeStr.includes('T')) {
-        const time = timeStr.substring(0, 5); // Get HH:MM part
-        return `${record.date}T${time}`;
-      }
-      return timeStr;
-    };
-
     setEditForm({
-      check_in: formatTimeForInput(record.check_in),
-      check_out: formatTimeForInput(record.check_out),
+      check_in: record.check_in || '',
+      check_out: record.check_out || '',
       status: record.status,
       notes: record.notes || '',
       reason: ''
