@@ -30,6 +30,11 @@ export const attendanceAPI = {
     const response = await api.get('/attendance/history', { params });
     return response.data;
   },
+  
+  deleteAttendance: async (attendanceId: number) => {
+    const response = await api.delete(`/attendance/${attendanceId}`);
+    return response.data;
+  },
 };
 
 // Face Recognition API

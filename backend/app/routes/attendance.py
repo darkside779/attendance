@@ -383,3 +383,38 @@ async def get_today_attendance(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving today's attendance: {str(e)}"
         )
+
+@router.delete("/{attendance_id}")
+async def delete_attendance(
+    attendance_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete an attendance record"""
+    try:
+        # Get the attendance record
+        attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+        
+        if not attendance:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Attendance record with ID {attendance_id} not found"
+            )
+        
+        # Delete the attendance record
+        db.delete(attendance)
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Attendance record deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting attendance record: {str(e)}"
+        )

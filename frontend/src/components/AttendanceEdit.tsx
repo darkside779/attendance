@@ -32,7 +32,8 @@ import {
   Edit,
   History,
   Save,
-  Cancel
+  Cancel,
+  Delete
 } from '@mui/icons-material';
 import { attendanceAPI } from '../services/attendanceAPI';
 
@@ -69,6 +70,10 @@ const AttendanceEdit: React.FC = () => {
   const [historyDialog, setHistoryDialog] = useState<{open: boolean, recordId: number | null}>({
     open: false,
     recordId: null
+  });
+  const [deleteDialog, setDeleteDialog] = useState<{open: boolean, record: AttendanceRecord | null}>({
+    open: false,
+    record: null
   });
   const [modificationHistory, setModificationHistory] = useState<ModificationHistory[]>([]);
   const [editForm, setEditForm] = useState({
@@ -186,6 +191,28 @@ const AttendanceEdit: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteClick = (record: AttendanceRecord) => {
+    setDeleteDialog({ open: true, record });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.record) return;
+
+    try {
+      await attendanceAPI.deleteAttendance(deleteDialog.record.id);
+      setMessage({ type: 'success', text: 'Attendance record deleted successfully' });
+      setDeleteDialog({ open: false, record: null });
+      loadAttendanceRecords();
+    } catch (error) {
+      console.error('Error deleting attendance record:', error);
+      setMessage({ type: 'error', text: 'Failed to delete attendance record' });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ open: false, record: null });
   };
 
   const handleViewHistory = async (recordId: number) => {
@@ -327,6 +354,15 @@ const AttendanceEdit: React.FC = () => {
                           size="small"
                         >
                           <History />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Record">
+                        <IconButton 
+                          onClick={() => handleDeleteClick(record)}
+                          color="error"
+                          size="small"
+                        >
+                          <Delete />
                         </IconButton>
                       </Tooltip>
                     </TableCell>
@@ -485,6 +521,30 @@ const AttendanceEdit: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setHistoryDialog({ open: false, recordId: null })}>
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialog.open} 
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the attendance record for <strong>{deleteDialog.record?.employee_name}</strong> on <strong>{deleteDialog.record?.date}</strong>?
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
