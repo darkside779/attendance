@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getApiBaseUrl } from '../utils/apiUrl';
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Button,
+  Grid,
   TextField,
   Dialog,
   DialogTitle,
@@ -26,13 +26,14 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
 } from '@mui/material';
 import {
   Edit,
   History,
   Save,
-  Cancel
+  Cancel,
+  Delete
 } from '@mui/icons-material';
 import { attendanceAPI } from '../services/attendanceAPI';
 
@@ -41,12 +42,12 @@ interface AttendanceRecord {
   employee_id: number;
   employee_name: string;
   employee_code: string;
-  date?: string;
+  date: string;
   check_in: string | null;
   check_out: string | null;
   total_hours: number;
   status: string;
-  notes?: string | null;
+  notes: string | null;
 }
 
 interface ModificationHistory {
@@ -70,6 +71,10 @@ const AttendanceEdit: React.FC = () => {
     open: false,
     recordId: null
   });
+  const [deleteDialog, setDeleteDialog] = useState<{open: boolean, record: AttendanceRecord | null}>({
+    open: false,
+    record: null
+  });
   const [modificationHistory, setModificationHistory] = useState<ModificationHistory[]>([]);
   const [editForm, setEditForm] = useState({
     check_in: '',
@@ -83,56 +88,26 @@ const AttendanceEdit: React.FC = () => {
 
   useEffect(() => {
     loadAttendanceRecords();
-  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   const loadAttendanceRecords = async () => {
-    if (loading) return; // Prevent multiple simultaneous calls
-    
     setLoading(true);
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
       const response = await attendanceAPI.getTodayAttendance(dateStr);
-      // console.log('API Response:', response); // Debug log
-      
-      // Handle different response structures
-      if (Array.isArray(response)) {
-        setAttendanceRecords(response);
-      } else if (response && Array.isArray(response.records)) {
-        // This is the correct structure from the backend
-        setAttendanceRecords(response.records);
-      } else if (response && Array.isArray(response.data)) {
-        setAttendanceRecords(response.data);
-      } else if (response && Array.isArray(response.attendance_records)) {
-        setAttendanceRecords(response.attendance_records);
-      } else {
-        console.warn('Unexpected response structure:', response);
-        setAttendanceRecords([]);
-      }
+      setAttendanceRecords(response);
     } catch (error) {
       console.error('Error loading attendance records:', error);
       setMessage({ type: 'error', text: 'Error loading attendance records' });
-      setAttendanceRecords([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
   const handleEditClick = (record: AttendanceRecord) => {
-    // Convert time format for datetime-local inputs
-    const formatTimeForInput = (timeStr: string | null) => {
-      if (!timeStr) return '';
-      // If it's just time (HH:MM:SS), combine with today's date
-      if (timeStr.includes(':') && !timeStr.includes('T')) {
-        const today = selectedDate.toISOString().split('T')[0];
-        const time = timeStr.substring(0, 5); // Get HH:MM part
-        return `${today}T${time}`;
-      }
-      return timeStr;
-    };
-
     setEditForm({
-      check_in: formatTimeForInput(record.check_in),
-      check_out: formatTimeForInput(record.check_out),
+      check_in: record.check_in || '',
+      check_out: record.check_out || '',
       status: record.status,
       notes: record.notes || '',
       reason: ''
@@ -141,17 +116,9 @@ const AttendanceEdit: React.FC = () => {
   };
 
   const handleSaveEdit = async () => {
-    if (!editDialog.record || !editDialog.record.id) {
-      setMessage({ type: 'error', text: 'Invalid attendance record - missing ID' });
-      return;
-    }
-    if (!editForm.reason.trim()) {
+    if (!editDialog.record || !editForm.reason.trim()) {
       setMessage({ type: 'error', text: 'Please provide a reason for the modification' });
       return;
-    }
-
-    if (loading) {
-      return; // Prevent multiple simultaneous saves
     }
 
     setLoading(true);
@@ -160,7 +127,6 @@ const AttendanceEdit: React.FC = () => {
 
       // Check what fields have changed
       if (editForm.check_in !== (editDialog.record.check_in || '')) {
-
         modifications.push({
           attendance_id: editDialog.record.id,
           field_name: 'check_in',
@@ -203,9 +169,7 @@ const AttendanceEdit: React.FC = () => {
 
       // Send modifications to backend
       for (const mod of modifications) {
-        // console.log('Sending modification:', mod); // Debug log
-        
-        const response = await fetch(`${getApiBaseUrl()}/reports/modify-attendance`, {
+        const response = await fetch('/api/v1/reports/modify-attendance', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -215,9 +179,7 @@ const AttendanceEdit: React.FC = () => {
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Modification error:', errorText);
-          throw new Error(`Failed to modify attendance: ${response.status} ${errorText}`);
+          throw new Error('Failed to modify attendance');
         }
       }
 
@@ -231,10 +193,32 @@ const AttendanceEdit: React.FC = () => {
     }
   };
 
+  const handleDeleteClick = (record: AttendanceRecord) => {
+    setDeleteDialog({ open: true, record });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.record) return;
+
+    try {
+      await attendanceAPI.deleteAttendance(deleteDialog.record.id);
+      setMessage({ type: 'success', text: 'Attendance record deleted successfully' });
+      setDeleteDialog({ open: false, record: null });
+      loadAttendanceRecords();
+    } catch (error) {
+      console.error('Error deleting attendance record:', error);
+      setMessage({ type: 'error', text: 'Failed to delete attendance record' });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ open: false, record: null });
+  };
+
   const handleViewHistory = async (recordId: number) => {
     setLoading(true);
     try {
-      const response = await fetch(`${getApiBaseUrl()}/reports/modification-history/${recordId}`, {
+      const response = await fetch(`/api/v1/reports/modification-history/${recordId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -284,8 +268,8 @@ const AttendanceEdit: React.FC = () => {
       {/* Date Selector */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Box sx={{ minWidth: 200, flex: 1 }}>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <TextField
                 label="Select Date"
                 type="date"
@@ -295,7 +279,7 @@ const AttendanceEdit: React.FC = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Box>
-            <Box sx={{ minWidth: 200, flex: 1 }}>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
               <Button
                 variant="contained"
                 onClick={loadAttendanceRecords}
@@ -330,7 +314,7 @@ const AttendanceEdit: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Array.isArray(attendanceRecords) && attendanceRecords.map((record) => (
+                {attendanceRecords.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell>
                       <Box>
@@ -372,10 +356,19 @@ const AttendanceEdit: React.FC = () => {
                           <History />
                         </IconButton>
                       </Tooltip>
+                      <Tooltip title="Delete Record">
+                        <IconButton 
+                          onClick={() => handleDeleteClick(record)}
+                          color="error"
+                          size="small"
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
-                {(!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) && (
+                {attendanceRecords.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} align="center">
                       No attendance records found for this date
@@ -396,76 +389,72 @@ const AttendanceEdit: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          <Box>
-            <Typography variant="h6">Edit Attendance Record</Typography>
-            {editDialog.record && (
-              <Typography variant="subtitle2" color="text.secondary">
-                {editDialog.record.employee_name} - {editDialog.record.date}
-              </Typography>
-            )}
-          </Box>
+          Edit Attendance Record
+          {editDialog.record && (
+            <Typography variant="subtitle2" color="text.secondary">
+              {editDialog.record.employee_name} - {editDialog.record.date}
+            </Typography>
+          )}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Box sx={{ flex: 1, minWidth: 250 }}>
-                <TextField
-                  label="Check In Time"
-                  type="datetime-local"
-                  value={editForm.check_in}
-                  onChange={(e) => setEditForm({ ...editForm, check_in: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 250 }}>
-                <TextField
-                  label="Check Out Time"
-                  type="datetime-local"
-                  value={editForm.check_out}
-                  onChange={(e) => setEditForm({ ...editForm, check_out: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 1 }}>
+            <Box sx={{ flex: "1 1 300px", minWidth: "300px" }}>
+              <TextField
+                label="Check In Time"
+                type="datetime-local"
+                value={editForm.check_in}
+                onChange={(e) => setEditForm({ ...editForm, check_in: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
             </Box>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Box sx={{ flex: 1, minWidth: 250 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value as string })}
-                    label="Status"
-                  >
-                    <MenuItem value="present">Present</MenuItem>
-                    <MenuItem value="late">Late</MenuItem>
-                    <MenuItem value="absent">Absent</MenuItem>
-                    <MenuItem value="half_day">Half Day</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 250 }}>
-                <TextField
-                  label="Notes"
-                  value={editForm.notes}
-                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={2}
-                />
-              </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
+              <TextField
+                label="Check Out Time"
+                type="datetime-local"
+                value={editForm.check_out}
+                onChange={(e) => setEditForm({ ...editForm, check_out: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
             </Box>
-            <TextField
-              label="Reason for Modification *"
-              value={editForm.reason}
-              onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
-              fullWidth
-              multiline
-              rows={3}
-              required
-              helperText="Please provide a detailed reason for this modification"
-            />
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as string })}
+                  label="Status"
+                >
+                  <MenuItem value="present">Present</MenuItem>
+                  <MenuItem value="late">Late</MenuItem>
+                  <MenuItem value="absent">Absent</MenuItem>
+                  <MenuItem value="half_day">Half Day</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
+              <TextField
+                label="Notes"
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                fullWidth
+                multiline
+                rows={2}
+              />
+            </Box>
+            <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
+              <TextField
+                label="Reason for Modification *"
+                value={editForm.reason}
+                onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
+                fullWidth
+                multiline
+                rows={3}
+                required
+                helperText="Please provide a detailed reason for this modification"
+              />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -532,6 +521,30 @@ const AttendanceEdit: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setHistoryDialog({ open: false, recordId: null })}>
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialog.open} 
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the attendance record for <strong>{deleteDialog.record?.employee_name}</strong> on <strong>{deleteDialog.record?.date}</strong>?
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
